@@ -1,0 +1,6 @@
+[package]
+name = "byt"
+version = "0.1.0"
+authors = ["Caleb Foust <cfoust@sqweebloid.com>"]
+
+[dependencies]
