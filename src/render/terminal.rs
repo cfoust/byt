@@ -1,4 +1,4 @@
-//! byt - terminal
+//! byt - render::terminal
 //!
 //! This module implements a Renderer that outputs ANSI escape codes to
 //! STDOUT for use in an ANSI-compliant terminal.
@@ -99,9 +99,13 @@ impl Renderer for TermRenderer {
         self.stdout.flush();
     }
 
-    fn draw(&mut self, dest : Point, out : &str) -> &mut Renderer {
-        self.move_cursor(dest);
+    fn write(&mut self, out : &str) -> &mut Renderer {
         self.write(out);
+        self
+    }
+
+    fn move_cursor(&mut self, dest : Point) -> &mut Renderer {
+        self.move_cursor(dest);
         self
     }
 

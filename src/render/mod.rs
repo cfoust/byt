@@ -5,10 +5,18 @@
 //! like X if in the future that becomes desirable. For the time being we just
 //! want to 'render' to the terminal window.
 
-/// 'terminal' implements the Renderer for standard ANSI-compliant terminals.
-pub mod terminal;
+// EXTERNS
 
-/// Describes a position in the rendering context in terms of rows and columns.
+// LIBRARY INCLUDES
+
+// SUBMODULES
+pub mod terminal;
+pub mod threaded;
+
+// LOCAL INCLUDES
+
+
+/// Describes a position in the rendering context in eerms of rows and columns.
 pub struct Point {
     pub row : u16,
     pub col : u16,
@@ -28,10 +36,13 @@ pub trait Renderer {
     /// update loop.
     fn done(&mut self);
 
-    /// "Draws" a sequence of utf-8 characters onto the screen in the given
-    /// position.
-    fn draw(&mut self, Point, &str) -> &mut Renderer;
+    /// Move the cursor to the given position.
+    fn move_cursor(&mut self, Point) -> &mut Renderer;
+
+    /// Write characters onto the screen at the cursor's position.
+    fn write(&mut self, &str) -> &mut Renderer;
 
     /// Get the current size of the rendering context in rows and columns.
     fn size(&mut self) -> Point;
 }
+
