@@ -14,12 +14,10 @@ pub struct Point {
     pub col : u16,
 }
 
+/// Trait for some simple methods to create renderers for our editor.
 pub trait Renderer {
-    /// Do any necessary initialization for this renderer.
-    fn init(&self);
-
     /// Clears the viewport with blank characters.
-    fn clear(&self) -> &Renderer;
+    fn clear(&mut self) -> &mut Renderer;
 
     /// Indicates to the Renderer that the user is done manipulating
     /// the viewport. Useful for pooling transactions together and
@@ -28,13 +26,16 @@ pub trait Renderer {
     ///
     /// Ideally, this would only be called once by the caller in any given
     /// update loop.
-    fn done(&self);
+    fn done(&mut self);
 
     /// "Draws" a sequence of utf-8 characters onto the screen in the given
     /// position.
     ///
     /// Positions are given in the ROW, COLUMN format.
-    fn draw(&self, Point, &str) -> &Renderer;
+    fn draw(&mut self, Point, &str) -> &mut Renderer;
+
+    /// Update the size of the viewport.
+    fn update_size(&mut self, Point) -> &mut Renderer;
 
     /// Get the current size of the rendering context in rows and columns.
     fn size(&self) -> Point;

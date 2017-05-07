@@ -3,18 +3,12 @@ mod render;
 use render::*;
 
 fn main() {
-    let x = render::terminal::TermRenderer {
-        size : Point {
-            row : 20,
-            col : 20
-        }
-    };
-
+    let mut x = render::terminal::TermRenderer::new();
+    print!("\x1B[20;0f");
     x
         .clear()
-        .draw(Point {
-            row : 20,
-            col : 20
-        }, "Hello")
+        .draw(Point { row : 5, col : 20, }, "welcome to byt")
         .done();
+        //.done();
+    loop {}
 }
