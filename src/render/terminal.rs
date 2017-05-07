@@ -3,7 +3,21 @@
 //! This module implements a Renderer that outputs ANSI escape codes to
 //! STDOUT for use in an ANSI-compliant terminal.
 
+// EXTERNS
+
+// LIBRARY INCLUDES
 use std::io::{self, Write};
+use std::process::Command;
+use libc::{
+    ioctl,
+    c_void,
+    TIOCGWINSZ,
+    winsize
+};
+
+// SUBMODULES
+
+// LOCAL INCLUDES
 use render::*;
 
 const LEAD : &str = "\x1B[";   // Leader for all commands.
@@ -14,7 +28,7 @@ pub struct TermRenderer {
     /// stay in bounds.
     size : Point,
 
-    /// Handle to STDOUT.
+    /// Reference to STDOUT.
     stdout : io::Stdout,
 }
 
@@ -43,6 +57,36 @@ impl TermRenderer {
                          dest.row.to_string(),
                          dest.col.to_string()).as_str());
     }
+
+    /// Get the current size of the terminal window and
+    /// store it in self.size.
+    fn get_size(&mut self) {
+        let (mut rows, mut cols);
+
+        // Get the size of the terminal by calling ioctl.
+        unsafe {
+            let mut ws = winsize {
+                ws_row: 0,
+                ws_col: 0,
+                ws_xpixel: 0,
+                ws_ypixel: 0,
+            };
+
+            // Grab a pointer to the struct.
+            let ptr : *mut c_void = &mut ws as *mut _ as *mut c_void;
+
+            // Run ioctl to check the window size.
+            // TODO: If this fails, try TIOCGSIZE.
+            let result = ioctl(1, TIOCGWINSZ, ptr);
+
+            match result {
+                0 => {rows = ws.ws_row; cols = ws.ws_col},
+                _ => panic!("Grabbing terminal size from ioctl failed")
+            }
+        }
+
+        self.size = Point { row : rows, col : cols };
+    }
 }
 
 impl Renderer for TermRenderer {
@@ -61,12 +105,8 @@ impl Renderer for TermRenderer {
         self
     }
 
-    fn update_size(&mut self, new_size : Point) -> &mut Renderer {
-        self.size = new_size;
-        self
-    }
-
-    fn size(&self) -> Point {
+    fn size(&mut self) -> Point {
+        self.get_size();
         Point { .. self.size }
     }
 }

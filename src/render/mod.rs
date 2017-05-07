@@ -30,13 +30,8 @@ pub trait Renderer {
 
     /// "Draws" a sequence of utf-8 characters onto the screen in the given
     /// position.
-    ///
-    /// Positions are given in the ROW, COLUMN format.
     fn draw(&mut self, Point, &str) -> &mut Renderer;
 
-    /// Update the size of the viewport.
-    fn update_size(&mut self, Point) -> &mut Renderer;
-
     /// Get the current size of the rendering context in rows and columns.
-    fn size(&self) -> Point;
+    fn size(&mut self) -> Point;
 }

@@ -1,14 +1,16 @@
+// EXTERNS
+extern crate libc;
+
+// LIBRARY INCLUDES
+
+// SUBMODULES
 mod render;
 
+// LOCAL INCLUDES
 use render::*;
 
 fn main() {
     let mut x = render::terminal::TermRenderer::new();
-    print!("\x1B[20;0f");
-    x
-        .clear()
-        .draw(Point { row : 5, col : 20, }, "welcome to byt")
-        .done();
-        //.done();
-    loop {}
+    let size = x.size();
+    println!("{}, {}", size.row, size.col);
 }
