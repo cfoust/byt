@@ -8,7 +8,7 @@
 // LIBRARY INCLUDES
 use std::io::{self, Write};
 use std::process::Command;
-use libc::{
+use byt::libc::{
     ioctl,
     c_void,
     TIOCGWINSZ,
@@ -18,7 +18,7 @@ use libc::{
 // SUBMODULES
 
 // LOCAL INCLUDES
-use render::*;
+use byt::render::*;
 
 const LEAD : &str = "\x1B[";   // Leader for all commands.
 const CMD_CLEAR : &str = "2J"; // Clears the display.

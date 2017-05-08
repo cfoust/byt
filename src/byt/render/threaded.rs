@@ -14,7 +14,7 @@ use std::ops::Deref;
 // SUBMODULES
 
 // LOCAL INCLUDES
-use render::{Point, Renderer};
+use byt::render::{Point, Renderer};
 
 /// Enum containing types of messages that can be sent to a ThreadRenderer.
 pub enum RenderMessage {
@@ -41,7 +41,7 @@ impl ThreadRenderer {
         }
     }
 
-    pub fn send(&self, msg : RenderMessage) {
+    fn send(&self, msg : RenderMessage) {
         match self.sender.send(msg) {
             Ok(a) => (),
             Err(_) => panic!("Failed to send rendering message")
