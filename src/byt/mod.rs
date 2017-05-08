@@ -38,7 +38,7 @@ pub fn init() {
     }
 
     // Start the rendering thread
-    thread::spawn(move || { render_thread(rx, data); });
+    let render = thread::spawn(move || { render_thread(rx, data); });
 
-    loop {}
+    render.join();
 }
