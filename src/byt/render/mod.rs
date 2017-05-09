@@ -39,7 +39,7 @@ pub trait Renderer {
     fn done(&mut self);
 
     /// Move the cursor to the given position.
-    fn move_cursor(&mut self, Point) -> &mut Renderer;
+    fn move_cursor(&mut self, u16, u16) -> &mut Renderer;
 
     /// Write characters onto the screen at the cursor's position.
     fn write(&mut self, &str) -> &mut Renderer;
@@ -71,7 +71,7 @@ pub fn render_thread(
         // together
         match data {
             threaded::RenderMessage::Clear => term.clear().done(),
-            threaded::RenderMessage::Move(row, col) => term.move_cursor(Point { row, col }).done(),
+            threaded::RenderMessage::Move(row, col) => term.move_cursor(row, col).done(),
             threaded::RenderMessage::Write(out) => term.write(out.as_str()).done(),
             _ => panic!("Something else"),
         }

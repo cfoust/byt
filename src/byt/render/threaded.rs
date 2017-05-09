@@ -59,8 +59,8 @@ impl Renderer for ThreadRenderer {
         //self.send(RenderMessage::Done);
     }
 
-    fn move_cursor(&mut self, dest : Point) -> &mut Renderer {
-        self.send(RenderMessage::Move(dest.row, dest.col));
+    fn move_cursor(&mut self, row : u16, col : u16) -> &mut Renderer {
+        self.send(RenderMessage::Move(row, col));
         self
     }
 

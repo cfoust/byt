@@ -52,10 +52,10 @@ impl TermRenderer {
     }
 
     /// Move the cursor to a given position.
-    fn move_cursor(&mut self, dest : Point) {
+    fn move_cursor(&mut self, row : u16, col : u16) {
         self.cmd(format!("{};{}H",
-                         dest.row.to_string(),
-                         dest.col.to_string()).as_str());
+                         row.to_string(),
+                         col.to_string()).as_str());
     }
 
     /// Get the current size of the terminal window and
@@ -104,8 +104,8 @@ impl Renderer for TermRenderer {
         self
     }
 
-    fn move_cursor(&mut self, dest : Point) -> &mut Renderer {
-        self.move_cursor(dest);
+    fn move_cursor(&mut self, row : u16, col : u16) -> &mut Renderer {
+        self.move_cursor(row, col);
         self
     }
 

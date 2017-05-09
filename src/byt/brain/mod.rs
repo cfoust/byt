@@ -1,5 +1,12 @@
 //! byt - brain
 //!
+//! The brain thread handles all aspects of input and output that
+//! are not covered by the rendering thread. Things like file IO,
+//! keyboard input, and other important details are this module's
+//! responsibility.
+//!
+//! It sends messages to the rendering thread over a channel provided
+//! to it so that rendering tasks don't block.
 
 // EXTERNS
 
@@ -23,22 +30,12 @@ pub fn brain_thread(sender : mpsc::Sender<threaded::RenderMessage>,
     let mut i = 0;
 
     let size = target.size();
-    println!("{}, {}", size.row, size.col);
     target.clear().done();
 
+    target.move_cursor(size.row / 2, size.col / 2);
+    target.write("BYT");
+
     loop {
-        for row in 0 .. size.row {
-            target.move_cursor(Point { row, col : 0 });
-            target.write(format!("THIS IS A TEST {}", i).as_str());
-        }
-
-        i += 1;
-
-        if (i > 9) {
-            i = 0;
-        }
-
-        target.done();
-        thread::sleep(Duration::from_millis(1000));
+        thread::sleep(Duration::from_millis(5000));
     }
 }
