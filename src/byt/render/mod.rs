@@ -56,16 +56,16 @@ pub fn render_thread(
     {
         let current_size = term.size();
         let mut mutex_size = size.lock()
-                             .unwrap();
+                                 .unwrap();
         mutex_size.row = current_size.row;
         mutex_size.col = current_size.col;
     }
 
     loop {
+        // TODO: add error handling for this
         let data = receiver
                         .recv()
                         .unwrap();
-        // TODO: add error handling for above
 
         // TODO: Improve this someday so that transactions are pooled
         // together

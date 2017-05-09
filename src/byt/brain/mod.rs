@@ -22,18 +22,23 @@ pub fn brain_thread(sender : mpsc::Sender<threaded::RenderMessage>,
     let mut target = threaded::ThreadRenderer::new(sender, size);
     let mut i = 0;
 
-    loop {
-        let size = target.size();
-        target.clear();
+    let size = target.size();
+    println!("{}, {}", size.row, size.col);
+    target.clear().done();
 
+    loop {
         for row in 0 .. size.row {
             target.move_cursor(Point { row, col : 0 });
             target.write(format!("THIS IS A TEST {}", i).as_str());
         }
+
         i += 1;
+
         if (i > 9) {
             i = 0;
         }
+
+        target.done();
         thread::sleep(Duration::from_millis(1000));
     }
 }
