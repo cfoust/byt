@@ -22,6 +22,9 @@ use std::sync::{Arc,Mutex};
 use byt::render::{Point, Renderer};
 use byt::render::threaded;
 
+/// Start the brain thread when given a channel to send messages
+/// to the renderer and a mutex for the size of the window we're
+/// rendering to.
 pub fn brain_thread(sender : mpsc::Sender<threaded::RenderMessage>,
                     size   : Arc<Mutex<Point>>) {
     // Create a new renderer that sends messages to the actual renderer,
