@@ -12,11 +12,9 @@ use byt::libc::{
     ioctl,
     c_void,
     TIOCGWINSZ,
-    winsize,
-    termios
+    winsize
 };
 use std::mem;
-use std::process::Command;
 
 // SUBMODULES
 
@@ -26,37 +24,31 @@ use byt::envs::*;
 // Constants for manipulating the terminal.
 const CMD_LEAD  : &str = "\x1B[";  // Leader for all commands.
 const CMD_CLEAR : &str = "2J";     // Clears the display.
-const CMD_MOVE  : &str = "%d;%dH"; // Move the cursor.
 
 pub struct Term {
-    savedConfig : libc::termios,
-    out         : io::Stdout,
+    saved_config : libc::termios,
 }
 
 impl Term {
     pub fn new() -> Term {
-        let term;
-
-        unsafe {
-            term = Term {
-                savedConfig : Term::get_mode(),
-                out         : io::stdout(),
-            };
+        Term {
+            saved_config : Term::get_mode(),
         }
-
-        term
     }
 
     fn cmd(&self, command : &str) {
         let mut handle = io::stdout();
-        handle.write(CMD_LEAD.as_bytes());
-        handle.write(command.as_bytes());
-        handle.flush();
+        handle.write(CMD_LEAD.as_bytes())
+              .expect("Writing command leader to stdout failed");
+        handle.write(command.as_bytes())
+              .expect("Writing command to stdout failed");
+        handle.flush()
+              .expect("Flushing stdout failed");
     }
 
     /// Get the size of the terminal in rows and columns.
     pub fn get_size(&self) -> (u16, u16) {
-        let (mut rows, mut cols);
+        let (rows, cols);
 
         // Get the size of the terminal by calling ioctl.
         unsafe {
@@ -98,8 +90,10 @@ impl Term {
     /// Write a string to the terminal at the cursor.
     pub fn write(&self, out : &str) {
         let mut handle = io::stdout();
-        handle.write(out.as_bytes());
-        handle.flush();
+        handle.write(out.as_bytes())
+              .expect("Failed to write to stdout");
+        handle.flush()
+              .expect("Flushing to stdout failed");
     }
 
     /// Get the current termios config.
@@ -114,7 +108,7 @@ impl Term {
     /// Set the terminal's mode between `Raw` and `Cooked`
     /// modes.
     pub fn set_mode(&self, mode : TermMode) {
-        let mut copy = self.savedConfig;
+        let mut copy = self.saved_config;
         match mode {
             TermMode::Cooked => {
                 // Don't do anything, just set it back to normal
@@ -130,7 +124,7 @@ impl Term {
                       libc::IXON);
 
                 // give full 8 bits
-                copy.c_cflag |= (libc::CS8);
+                copy.c_cflag |= libc::CS8;
 
                 // Also fix local modes
                 copy.c_lflag &= !(libc::ECHO |

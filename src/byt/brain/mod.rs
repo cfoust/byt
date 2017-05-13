@@ -11,8 +11,6 @@
 // EXTERNS
 
 // LIBRARY INCLUDES
-use std::thread;
-use std::time::Duration;
 use std::sync::mpsc;
 use std::sync::{Arc,Mutex};
 use std::io;
@@ -35,7 +33,6 @@ pub fn brain_thread(sender : mpsc::Sender<threaded::RenderMessage>,
     // Create a new renderer that sends messages to the actual renderer,
     // but implements the same trait.
     let mut target = threaded::ThreadRenderer::new(sender, size);
-    let mut i = 0;
 
     let size = target.size();
     target.clear().done();
@@ -48,9 +45,10 @@ pub fn brain_thread(sender : mpsc::Sender<threaded::RenderMessage>,
 
     let mut a = [0u8];
     loop {
-        let input = io::stdin().read_exact(&mut a);
+        io::stdin().read_exact(&mut a)
+                   .expect("Failed to read byte from stdin");
 
-        if (a[0] == 113) {
+        if a[0] == 113 {
             term.set_mode(TermMode::Cooked);
             process::exit(0);
         }

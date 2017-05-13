@@ -33,21 +33,21 @@ pub fn init() {
 
     // Make a Condvar to ensure that the rendering thread starts
     // and initializes before the brain.
-    let renderLock = Arc::new((Mutex::new(false), Condvar::new()));
+    let render_lock = Arc::new((Mutex::new(false), Condvar::new()));
 
     // Start the rendering thread
     {
         let data = data.clone();
-        let renderLock = renderLock.clone();
+        let render_lock = render_lock.clone();
 
         thread::spawn(move || {
             // Has to be in its own scope so the lock drops correctly.
             {
                 // Untangle the Convar
-                let &(ref lock, ref cvar) = &*renderLock;
+                let &(ref lock, ref cvar) = &*render_lock;
                 // Change the value to true
-                let mut renderingStarted = lock.lock().unwrap();
-                *renderingStarted = true;
+                let mut rendering_started = lock.lock().unwrap();
+                *rendering_started = true;
                 cvar.notify_one();
             }
 
@@ -60,16 +60,17 @@ pub fn init() {
     {
         {
             // Wait for the render thread to come up
-            let &(ref lock, ref cvar) = &*renderLock;
-            let mut renderingStarted = lock.lock().unwrap();
-            while !*renderingStarted {
-                renderingStarted = cvar.wait(renderingStarted).unwrap();
+            let &(ref lock, ref cvar) = &*render_lock;
+            let mut rendering_started = lock.lock().unwrap();
+            while !*rendering_started {
+                rendering_started = cvar.wait(rendering_started).unwrap();
             }
         }
 
         let tx = tx.clone();
         thread::spawn(move || { brain_thread(tx, data); })
                 // The brain thread decides when we exit.
-                .join();
+                .join()
+                .expect("Failed to join brain thread");
     }
 }

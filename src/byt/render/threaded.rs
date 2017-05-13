@@ -6,7 +6,6 @@
 // EXTERNS
 
 // LIBRARY INCLUDES
-use std::thread;
 use std::sync::{Arc,Mutex};
 use std::sync::mpsc;
 use std::ops::Deref;
@@ -19,7 +18,6 @@ use byt::render::{Point, Renderer};
 /// Enum containing types of messages that can be sent to a ThreadRenderer.
 pub enum RenderMessage {
     Clear,
-    ClearToEndOfLine,
     /// Move the cursor to a row and column.
     Move(u16, u16),
     /// Write a string.
@@ -43,7 +41,7 @@ impl ThreadRenderer {
 
     fn send(&self, msg : RenderMessage) {
         match self.sender.send(msg) {
-            Ok(a) => (),
+            Ok(_) => (),
             Err(_) => panic!("Failed to send rendering message")
         }
     }

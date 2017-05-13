@@ -14,9 +14,6 @@ use byt::render::*;
 use byt::envs::os_unix::{Term};
 
 pub struct TermRenderer {
-    /// Maintains the size of the renderer so callers can know to
-    /// stay in bounds.
-    size : Point,
     term : Term,
 }
 
@@ -24,7 +21,6 @@ impl TermRenderer {
     /// Construct a new TermRenderer.
     pub fn new() -> TermRenderer {
         TermRenderer {
-            size : Point { row : 0, col : 0 },
             term : Term::new(),
         }
     }

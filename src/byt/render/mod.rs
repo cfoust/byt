@@ -8,7 +8,6 @@
 // EXTERNS
 
 // LIBRARY INCLUDES
-use std::thread;
 use std::sync::mpsc;
 use std::sync::{Arc, Mutex};
 
@@ -73,9 +72,6 @@ pub fn render_thread(
             threaded::RenderMessage::Clear => term.clear().done(),
             threaded::RenderMessage::Move(row, col) => term.move_cursor(row, col).done(),
             threaded::RenderMessage::Write(out) => term.write(out.as_str()).done(),
-            // Right now we don't handle clearing to the end of the line.
-            // May come back and add that in at some point.
-            _ => panic!("Got unsupported rendering message"),
         }
     }
 }
