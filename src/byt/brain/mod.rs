@@ -34,25 +34,29 @@ pub fn brain_thread(sender : mpsc::Sender<threaded::RenderMessage>,
     // but implements the same trait.
     let mut target = threaded::ThreadRenderer::new(sender, size);
 
+    // Get the size of the terminal window.
     let size = target.size();
     target.clear().done();
 
+    // For now we just move to the center
     target.move_cursor(size.row / 2, size.col / 2);
     target.write("BYT");
 
+    // Struct with methods for manipulating the terminal.
     let term = Term::new();
+    // Set the terminal to raw mode on startup
     term.set_mode(TermMode::Raw);
 
-    let mut a = [0u8];
+    // Read one byte at a time.
+    let mut byte = [0u8];
     loop {
-        io::stdin().read_exact(&mut a)
+        io::stdin().read_exact(&mut byte)
                    .expect("Failed to read byte from stdin");
 
-        if a[0] == 113 {
+        if byte[0] == 113 {
             term.set_mode(TermMode::Cooked);
+            term.write("\n");
             process::exit(0);
         }
-
-        println!("{}", a[0]);
     }
 }
