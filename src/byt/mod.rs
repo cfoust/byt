@@ -17,6 +17,7 @@ use std::sync::{Arc, Mutex, Condvar};
 // SUBMODULES
 mod render;
 mod brain;
+mod envs;
 
 // LOCAL INCLUDES
 use byt::render::*;

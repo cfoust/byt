@@ -15,12 +15,17 @@ use std::thread;
 use std::time::Duration;
 use std::sync::mpsc;
 use std::sync::{Arc,Mutex};
+use std::io;
+use std::io::Read;
+use std::process;
 
 // SUBMODULES
 
 // LOCAL INCLUDES
 use byt::render::{Point, Renderer};
 use byt::render::threaded;
+use byt::envs::TermMode;
+use byt::envs::os_unix::Term;
 
 /// Start the brain thread when given a channel to send messages
 /// to the renderer and a mutex for the size of the window we're
@@ -38,7 +43,18 @@ pub fn brain_thread(sender : mpsc::Sender<threaded::RenderMessage>,
     target.move_cursor(size.row / 2, size.col / 2);
     target.write("BYT");
 
+    let term = Term::new();
+    term.set_mode(TermMode::Raw);
+
+    let mut a = [0u8];
     loop {
-        thread::sleep(Duration::from_millis(5000));
+        let input = io::stdin().read_exact(&mut a);
+
+        if (a[0] == 113) {
+            term.set_mode(TermMode::Cooked);
+            process::exit(0);
+        }
+
+        println!("{}", a[0]);
     }
 }
