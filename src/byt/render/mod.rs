@@ -8,12 +8,9 @@
 // EXTERNS
 
 // LIBRARY INCLUDES
-use std::sync::mpsc;
-use std::sync::{Arc, Mutex};
 
 // SUBMODULES
 pub mod terminal;
-pub mod threaded;
 
 // LOCAL INCLUDES
 
@@ -45,33 +42,4 @@ pub trait Renderer {
 
     /// Get the current size of the rendering context in rows and columns.
     fn size(&mut self) -> Point;
-}
-
-pub fn render_thread(
-    receiver : mpsc::Receiver<threaded::RenderMessage>,
-    size   : Arc<Mutex<Point>>) {
-
-    let mut term = terminal::TermRenderer::new();
-    {
-        let current_size = term.size();
-        let mut mutex_size = size.lock()
-                                 .unwrap();
-        mutex_size.row = current_size.row;
-        mutex_size.col = current_size.col;
-    }
-
-    loop {
-        // TODO: add error handling for this
-        let data = receiver
-                    .recv()
-                    .unwrap();
-
-        // TODO: Improve this someday so that transactions are pooled
-        // together
-        match data {
-            threaded::RenderMessage::Clear => term.clear().done(),
-            threaded::RenderMessage::Move(row, col) => term.move_cursor(row, col).done(),
-            threaded::RenderMessage::Write(out) => term.write(out.as_str()).done(),
-        }
-    }
 }
