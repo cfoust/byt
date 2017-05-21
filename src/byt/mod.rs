@@ -12,17 +12,20 @@ extern crate libc;
 // LIBRARY INCLUDES
 use std::io;
 use std::io::Read;
+use std::env;
 use std::process;
 
 // SUBMODULES
 mod render;
 mod envs;
+mod buffer;
 
 // LOCAL INCLUDES
 use byt::render::Renderer;
 use byt::render::terminal;
 use byt::envs::TermMode;
 use byt::envs::os_unix::Term;
+use byt::buffer::Buffer;
 
 /// Initialize and start byt.
 pub fn init() {
@@ -41,13 +44,26 @@ pub fn init() {
     // Set the terminal to raw mode on startup
     term.set_mode(TermMode::Raw);
 
+    // For now, just make a buffer from the first file
+    // supplied as an argument.
+    let buffer = match env::args().nth(1) {
+        // TODO: better error handling here
+        Some(x) => match Buffer::from_file(x.clone()) {
+                Ok(v) => v,
+                Err(_) => Buffer::new(x),
+        },
+        None => Buffer::new(String::from("Unnamed")),
+    };
+
     // Read one byte at a time.
     let mut byte = [0u8];
     loop {
-        io::stdin().read_exact(&mut byte)?;
+        io::stdin().read_exact(&mut byte)
                    .expect("Failed to read byte from stdin");
+        let code = byte[0];
 
-        if byte[0] == 113 {
+        print!("{}\n", byte[0]);
+        if code == 113 {
             term.set_mode(TermMode::Cooked);
             term.write("\n");
             process::exit(0);
