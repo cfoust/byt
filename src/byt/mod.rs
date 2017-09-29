@@ -32,14 +32,13 @@ pub fn init() {
     // Struct with methods for manipulating the terminal.
     let term = Term::new();
     // Set the terminal to raw mode on startup
+    term.start();
     term.set_mode(TermMode::Raw);
-    term.set_alternate();
 
     let mut target = terminal::TermRenderer::new();
 
     // Get the size of the terminal window.
     let size = target.size();
-    target.clear().done();
 
     // For now we just move to the center
     target.move_cursor(size.row / 2, size.col / 2);
@@ -65,8 +64,8 @@ pub fn init() {
 
         print!("{}\n", byte[0]);
         if code == 113 {
+            term.stop();
             term.set_mode(TermMode::Cooked);
-            term.set_normal();
             process::exit(0);
         }
     }
