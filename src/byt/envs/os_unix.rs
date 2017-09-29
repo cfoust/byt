@@ -24,6 +24,8 @@ use byt::envs::*;
 // Constants for manipulating the terminal.
 const CMD_LEAD  : &str = "\x1B[";  // Leader for all commands.
 const CMD_CLEAR : &str = "2J";     // Clears the display.
+const CMD_ALT   : &str = "?1047h";     // Clears the display.
+const CMD_NORM  : &str = "?1049l";     // Clears the display.
 
 pub struct Term {
     saved_config : libc::termios,
@@ -94,6 +96,16 @@ impl Term {
               .expect("Failed to write to stdout");
         handle.flush()
               .expect("Flushing to stdout failed");
+    }
+
+    /// Set the terminal to the alternate full screen buffer.
+    pub fn set_alternate(&self) {
+        self.cmd(CMD_ALT);
+    }
+
+    /// Set the terminal back to the normal buffer.
+    pub fn set_normal(&self) {
+        self.cmd(CMD_NORM);
     }
 
     /// Get the current termios config.

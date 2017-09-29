@@ -29,6 +29,12 @@ use byt::buffer::Buffer;
 
 /// Initialize and start byt.
 pub fn init() {
+    // Struct with methods for manipulating the terminal.
+    let term = Term::new();
+    // Set the terminal to raw mode on startup
+    term.set_mode(TermMode::Raw);
+    term.set_alternate();
+
     let mut target = terminal::TermRenderer::new();
 
     // Get the size of the terminal window.
@@ -38,11 +44,6 @@ pub fn init() {
     // For now we just move to the center
     target.move_cursor(size.row / 2, size.col / 2);
     target.write("BYT");
-
-    // Struct with methods for manipulating the terminal.
-    let term = Term::new();
-    // Set the terminal to raw mode on startup
-    term.set_mode(TermMode::Raw);
 
     // For now, just make a buffer from the first file
     // supplied as an argument.
@@ -65,7 +66,7 @@ pub fn init() {
         print!("{}\n", byte[0]);
         if code == 113 {
             term.set_mode(TermMode::Cooked);
-            term.write("\n");
+            term.set_normal();
             process::exit(0);
         }
     }

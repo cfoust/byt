@@ -36,7 +36,6 @@ impl Buffer {
             Err(e) => return Err(e),
         };
 
-        // Probably not necessary to use a BufReader here.
         let mut buf_reader = BufReader::new(file);
         let mut contents = String::new();
 
