@@ -22,12 +22,10 @@ use std::mem;
 use byt::envs::*;
 
 // Constants for manipulating the terminal.
-const CMD_LEAD           : &str = "\x1B[";  // Leader for all commands.
-const CMD_CLEAR          : &str = "2J";     // Clears the display.
-const CMD_NORM           : &str = "?47l";   // Change to normal buffer
-const CMD_ALT            : &str = "?47h";   // Change to alternate buffer
-const CMD_SAVE_CURSOR    : &str = "6";      // Save the cursor's position.
-const CMD_RESTORE_CURSOR : &str = "7";      // Restore the cursor's position.
+const CMD_LEAD           : &str = "\x1B";  // Leader for all commands.
+const CMD_CLEAR          : &str = "[2J";     // Clears the display.
+const CMD_TI             : &str = "7\x1B[?47h";   // Change to termcap mode.
+const CMD_TE             : &str = "[2J\x1B[?47l\x1B8";   // Change to normal mode.
 
 pub struct Term {
     saved_config : libc::termios,
@@ -50,22 +48,12 @@ impl Term {
 
     /// Set the terminal to the alternate full screen buffer.
     fn set_alternate(&self) {
-        self.cmd(CMD_ALT);
+        self.cmd(CMD_TI);
     }
 
     /// Set the terminal back to the normal buffer.
     fn set_normal(&self) {
-        self.cmd(CMD_NORM);
-    }
-
-    /// Save the cursor position.
-    fn save_cursor(&self) {
-        self.cmd(CMD_SAVE_CURSOR);
-    }
-
-    /// Restore the cursor position.
-    fn restore_cursor(&self) {
-        self.cmd(CMD_RESTORE_CURSOR);
+        self.cmd(CMD_TE);
     }
 
     /// Get the current termios config.
@@ -88,16 +76,13 @@ impl Term {
 
     /// Open the application.
     pub fn start(&self) {
-        self.save_cursor();
         self.set_alternate();
     }
 
     /// Close the application.
     pub fn stop(&self) {
         self.set_normal();
-        self.restore_cursor();
     }
-
 
     /// Get the size of the terminal in rows and columns.
     pub fn get_size(&self) -> (u16, u16) {
