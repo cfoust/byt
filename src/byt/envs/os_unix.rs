@@ -117,7 +117,7 @@ impl Term {
     ///
     /// Takes input in (row, col).
     pub fn move_cursor(&self, row : u16, col : u16) {
-        self.cmd(format!("{};{}H", row, col).as_str());
+        self.cmd(format!("[{};{}H", row, col).as_str());
     }
 
     /// Clear the terminal's screen.
