@@ -16,6 +16,8 @@ use std::io::BufReader;
 pub struct Buffer {
     name  : String,
     lines : Vec<String>,
+    cursor_row : u16,
+    cursor_col : u16,
 }
 
 impl Buffer {
@@ -24,6 +26,8 @@ impl Buffer {
         Buffer {
             name,
             lines : Vec::new(),
+            cursor_row : 0,
+            cursor_col : 0,
         }
     }
 
@@ -44,8 +48,6 @@ impl Buffer {
         for line in contents.lines() {
             buffer.lines.push(String::from(line));
         }
-
-        print!("\nLines: {}\n", buffer.lines.len());
 
         Ok(buffer)
     }
