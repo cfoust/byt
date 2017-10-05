@@ -10,22 +10,22 @@
 extern crate libc;
 
 // LIBRARY INCLUDES
-use std::io;
 use std::io::Read;
+use std::io::stdin;
 use std::env;
 use std::process;
 
 // SUBMODULES
 mod render;
 mod envs;
-mod buffer;
+mod io;
 
 // LOCAL INCLUDES
 use byt::render::Renderer;
 use byt::render::terminal;
 use byt::envs::TermMode;
 use byt::envs::os_unix::Term;
-use byt::buffer::Buffer;
+use byt::io::file::PieceFile;
 
 /// Initialize and start byt.
 pub fn init() {
@@ -48,18 +48,18 @@ pub fn init() {
     // supplied as an argument.
     let buffer = match env::args().nth(1) {
         // TODO: better error handling here
-        Some(x) => match Buffer::from_file(x.clone()) {
+        Some(x) => match PieceFile::open(x.clone()) {
                 Ok(v) => v,
-                Err(_) => Buffer::new(x),
+                Err(_) => PieceFile::open(x).unwrap(),
         },
-        None => Buffer::new(String::from("Unnamed")),
+        None => PieceFile::open(String::from("Unnamed")).unwrap(),
     };
 
     // Read one byte at a time.
     let mut byte = [0u8];
     loop {
-        io::stdin().read_exact(&mut byte)
-                   .expect("Failed to read byte from stdin");
+        stdin().read_exact(&mut byte)
+            .expect("Failed to read byte from stdin");
         let code = byte[0];
 
         print!("{}\n", byte[0]);

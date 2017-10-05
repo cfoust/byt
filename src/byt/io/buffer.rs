@@ -8,10 +8,6 @@ extern crate regex;
 
 // LIBRARY INCLUDES
 use self::regex::Regex;
-use std::fs::File;
-use std::io::BufReader;
-use std::io::Read;
-use std::io;
 
 // SUBMODULES
 
@@ -119,24 +115,5 @@ impl Buffer {
             lines : Vec::new(),
             cursor_offset : 0,
         }
-    }
-
-    /// Create a new buffer from a file.
-    pub fn from_file(filename : String) -> io::Result<Buffer> {
-        let mut buffer = Buffer::new(filename.clone());
-
-        let file = match File::open(filename) {
-            Ok(v) => v,
-            Err(e) => return Err(e),
-        };
-
-        let mut buf_reader = BufReader::new(file);
-        let mut contents = String::new();
-
-        // TODO: Come back and fix this so we don't have to read the whole file at once.
-        buf_reader.read_to_string(&mut contents)?;
-        buffer.scan_text(contents);
-
-        Ok(buffer)
     }
 }
