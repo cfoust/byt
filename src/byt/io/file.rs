@@ -34,6 +34,18 @@ struct Piece {
     length : u32
 }
 
+enum Operation {
+    Insert,
+    Delete
+}
+
+/// Records a particular modification of the text.
+struct Action {
+    op     : Operation,
+    start  : u32,
+    length : u32
+}
+
 /// Implements logical operations on a file that are not written
 /// until asked to.
 pub struct PieceFile {
@@ -57,8 +69,7 @@ impl PieceFile {
     /// Open a new PieceFile. If the file doesn't exist, it is created.
     pub fn open(path : String) -> io::Result<PieceFile> {
         let file = OpenOptions::new()
-            .write(true)
-            .create(true)
+            .read(true)
             .open(path.clone()).unwrap();
 
         // Get the length of the file to initialize the first Piece
@@ -76,11 +87,12 @@ impl PieceFile {
             offset : 0,
             length : size as u32,
         });
+        print!("{}\n", piece_file.piece_table[0].length);
 
         Ok(piece_file)
     }
 
     /// Insert some text.
-    pub fn insert(&mut self, text : String, offset : u32) {
+    pub fn insert(&mut self, text : &str, offset : u32) {
     }
 }
