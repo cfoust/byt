@@ -28,18 +28,21 @@ enum SourceFile {
 
 /// A Piece stores some information about a part of the
 /// modified file.
+#[derive(Clone)]
 struct Piece {
     /// The file this piece refers to.
     file : SourceFile,
-    /// The offset (in bytes) of the text in this Piece.
-    offset : u32,
+    /// The offset (in bytes) of the text in this Piece in its file.
+    file_offset : u32,
     /// The length of the text in this Piece.
-    length : u32
+    length : u32,
+    /// The logical offset of the Piece.
+    logical_offset : u32,
 }
 
 impl fmt::Display for Piece {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        write!(f, "({:?}, {}, {})", self.file, self.offset, self.length)
+        write!(f, "{:?}:{} ({}){})", self.file, self.file_offset, self.logical_offset, self.length)
     }
 }
 
@@ -53,6 +56,7 @@ enum Operation {
 struct Action {
     op     : Operation,
     offset : u32,
+    pieces : Vec<Piece>,
     length : u32
 }
 
@@ -83,6 +87,10 @@ impl PieceFile {
     fn get_at_offset(&self, offset : u32) -> Option<usize> {
         let mut logical_length = 0;
 
+        // This has to be O(N) for the time being unless we want
+        // to update all logical offsets when the table changes.
+        // On modern hardware this will hardly be a bottleneck,
+        // but we'll see.
         for index in 0..self.piece_table.len() {
             let piece = &self.piece_table[index];
             logical_length += piece.length;
@@ -93,6 +101,7 @@ impl PieceFile {
 
             return Some(index);
         }
+
         None
     }
 
@@ -119,8 +128,9 @@ impl PieceFile {
 
         piece_file.piece_table.push(Piece {
             file : SourceFile::Original,
-            offset : 0,
+            file_offset : 0,
             length : size as u32,
+            logical_offset : 0,
         });
 
         Ok(piece_file)
@@ -137,6 +147,13 @@ impl PieceFile {
             reader      : None,
         };
 
+        piece_file.piece_table.push(Piece {
+            file : SourceFile::Append,
+            file_offset : 0,
+            length : 0,
+            logical_offset : 0,
+        });
+
         Ok(piece_file)
     }
 
@@ -148,14 +165,16 @@ impl PieceFile {
         self.append_file += text;
         self.length      += length;
 
-        let piece = Piece {
+        let mut piece = Piece {
             file   : SourceFile::Append,
-            offset : append_offset,
+            file_offset : append_offset,
+            logical_offset : 0, // Unknown right now
             length,
         };
 
         let action = Action {
-            op : Operation::Insert,
+            op     : Operation::Insert,
+            pieces : Vec::new(),
             offset,
             length,
         };
@@ -169,6 +188,7 @@ impl PieceFile {
             return;
         }
         else if offset + length == self.length {
+            piece.logical_offset = self.length - length;
             self.piece_table.push(piece);
             return;
         }
@@ -178,18 +198,19 @@ impl PieceFile {
         // goes in between them.
         let split_index = match self.get_at_offset(offset) {
             Some(v) => v,
-            None => return
+            None => return // TODO: Handle this better
         };
         let split_piece = self.piece_table.remove(split_index);
 
-        let lower_size  = offset - split_piece.offset;
-        let upper_size  = (split_piece.offset + split_piece.length) - offset;
+        let lower_size  = offset - split_piece.logical_offset;
+        let upper_size  = (split_piece.logical_offset + split_piece.length) - offset;
 
         if upper_size > 0 {
             self.piece_table.insert(split_index, Piece {
-                file   : split_piece.file,
-                offset : split_piece.offset + lower_size,
-                length : upper_size,
+                file           : split_piece.file,
+                file_offset    : split_piece.file_offset + lower_size,
+                length         : upper_size,
+                logical_offset : split_piece.logical_offset + lower_size + length,
             });
         }
 
@@ -197,10 +218,68 @@ impl PieceFile {
 
         if lower_size > 0 {
             self.piece_table.insert(split_index, Piece {
-                file   : split_piece.file,
-                offset : split_piece.offset,
-                length : lower_size,
+                file           : split_piece.file,
+                file_offset    : split_piece.file_offset,
+                length         : lower_size,
+                logical_offset : split_piece.logical_offset,
             });
+        }
+    }
+
+    /// Delete some text.
+    pub fn delete(&mut self, offset : u32, length : u32) {
+        let start_offset = offset;
+        let end_offset   = offset + length;
+        let start_index  = self.get_at_offset(start_offset).unwrap();
+        let end_index    = self.get_at_offset(end_offset).unwrap();
+        let delete_size  = end_index - start_index;
+        let num_pieces   = (end_index - start_index) + 1;
+
+        let mut action = Action {
+            length,
+            offset,
+            op     : Operation::Delete,
+            pieces : Vec::new()
+        };
+
+        // Deletes can affect multiple pieces if the user wants to delete
+        // across piece boundaries. We have to start at the bottom index
+        // and move up.
+        for index in start_index..end_index {
+            let mut piece          = &self.piece_table[index];
+            let piece_start_offset = piece.logical_offset;
+            let piece_end_offset   = piece.logical_offset + piece.length;
+
+            // Edge case : delete is embedded WITHIN a single piece
+            if start_offset > piece_start_offset && end_offset < piece_end_offset {
+                self.piece_table.remove(index);
+                let upper_size = piece_end_offset - end_offset;
+                let lower_size = start_offset - piece_start_offset;
+
+                action.pieces.push(Piece {
+                    file           : piece.file,
+                    file_offset    : piece.file_offset + (start_offset - piece.logical_offset),
+                    length         : delete_size,
+                    logical_offset : start_offset,
+                });
+
+                // We insert the upper part first
+                self.piece_table.insert(index, Piece {
+                    file           : piece.file,
+                    file_offset    : piece.file_offset + lower_size + delete_size,
+                    length         : upper_size,
+                    logical_offset : start_offset,
+                });
+                // Then the lower part
+                self.piece_table.insert(index, Piece {
+                    file           : piece.file,
+                    file_offset    : piece.file_offset,
+                    length         : lower_size,
+                    logical_offset : piece.logical_offset,
+                });
+
+                return
+            }
         }
     }
 }
@@ -212,7 +291,7 @@ mod tests {
     #[test]
     fn it_inserts() {
         let mut file = PieceFile::empty().unwrap();
-        assert_eq!(file.piece_table.len(), 0);
+        assert_eq!(file.piece_table.len(), 1);
 
         file.insert("foo", 0);
         file.insert("bar", 0);
@@ -223,13 +302,15 @@ mod tests {
         let first_element  = &piece_table[0];
         let second_element = &piece_table[1];
 
-        assert_eq!(first_element.offset, 3);
+        assert_eq!(first_element.file_offset, 3);
         assert_eq!(first_element.length, 3);
 
-        assert_eq!(second_element.offset, 0);
+        assert_eq!(second_element.file_offset, 0);
         assert_eq!(second_element.length, 3);
 
         let action = &file.actions[0];
         assert_eq!(action.op, Operation::Insert);
+
+        // TODO: when read() is implemented check that this says "barfoo"
     }
 }
