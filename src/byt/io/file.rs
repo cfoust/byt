@@ -3,6 +3,8 @@
 //! Implements a piece table to abstract over accessing and
 //! modifying a file on disk.
 
+// TODO: convert u32 to usize
+
 // EXTERNS
 
 // LIBRARY INCLUDES
@@ -42,7 +44,7 @@ struct Piece {
 
 impl fmt::Display for Piece {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        write!(f, "{:?}:{} ({}){})", self.file, self.file_offset, self.logical_offset, self.length)
+        write!(f, "{:?}:{} ({}:{})", self.file, self.file_offset, self.logical_offset, self.length)
     }
 }
 
@@ -105,6 +107,23 @@ impl PieceFile {
         None
     }
 
+    /// Update the logical offsets starting at a certain index.
+    fn update_offsets(&mut self, start_index : usize) {
+        // Don't do anything if this is the last index
+        if start_index == self.piece_table.len() - 1 {
+            return;
+        }
+
+        let mut offset = self.piece_table[start_index].logical_offset +
+                         self.piece_table[start_index].length;
+
+        for index in start_index + 1 .. self.piece_table.len() {
+            let piece = &mut self.piece_table[index];
+            piece.logical_offset = offset;
+            offset += piece.length;
+        }
+    }
+
     // ###############################
     // P U B L I C  F U N C T I O N S
     // ###############################
@@ -147,13 +166,6 @@ impl PieceFile {
             reader      : None,
         };
 
-        piece_file.piece_table.push(Piece {
-            file : SourceFile::Append,
-            file_offset : 0,
-            length : 0,
-            logical_offset : 0,
-        });
-
         Ok(piece_file)
     }
 
@@ -185,11 +197,13 @@ impl PieceFile {
         // at the beginning or end of the file.
         if offset == 0 {
             self.piece_table.insert(0, piece);
+            self.update_offsets(0);
             return;
         }
         else if offset + length == self.length {
             piece.logical_offset = self.length - length;
             self.piece_table.push(piece);
+            // No need to update offsets, this is the last piece
             return;
         }
 
@@ -224,6 +238,7 @@ impl PieceFile {
                 logical_offset : split_piece.logical_offset,
             });
         }
+        self.update_offsets(split_index);
     }
 
     /// Delete some text.
@@ -232,7 +247,7 @@ impl PieceFile {
         let end_offset   = offset + length;
         let start_index  = self.get_at_offset(start_offset).unwrap();
         let end_index    = self.get_at_offset(end_offset).unwrap();
-        let delete_size  = end_index - start_index;
+        let delete_size  = (end_index - start_index) as u32;
         let num_pieces   = (end_index - start_index) + 1;
 
         let mut action = Action {
@@ -244,9 +259,11 @@ impl PieceFile {
 
         // Deletes can affect multiple pieces if the user wants to delete
         // across piece boundaries. We have to start at the bottom index
-        // and move up.
-        for index in start_index..end_index {
-            let mut piece          = &self.piece_table[index];
+        // and move up. The code below doesn't result in a net positive number
+        // of pieces in the piece table. We do any deletion necessary in a second
+        // pass.
+        for index in start_index .. end_index + 1 {
+            let piece              = self.piece_table[index].clone();
             let piece_start_offset = piece.logical_offset;
             let piece_end_offset   = piece.logical_offset + piece.length;
 
@@ -258,7 +275,7 @@ impl PieceFile {
 
                 action.pieces.push(Piece {
                     file           : piece.file,
-                    file_offset    : piece.file_offset + (start_offset - piece.logical_offset),
+                    file_offset    : piece.file_offset + lower_size,
                     length         : delete_size,
                     logical_offset : start_offset,
                 });
@@ -270,6 +287,7 @@ impl PieceFile {
                     length         : upper_size,
                     logical_offset : start_offset,
                 });
+
                 // Then the lower part
                 self.piece_table.insert(index, Piece {
                     file           : piece.file,
@@ -277,10 +295,54 @@ impl PieceFile {
                     length         : lower_size,
                     logical_offset : piece.logical_offset,
                 });
+                break
+            }
 
-                return
+            // The deletion area starts in a piece and goes on to another
+            if start_offset < piece_end_offset && end_offset >= piece_end_offset {
+                let piece      = &mut self.piece_table[index];
+                let upper_size = piece_end_offset - start_offset;
+                let lower_size = start_offset - piece_start_offset;
+
+                action.pieces.push(Piece {
+                    file           : piece.file,
+                    file_offset    : piece.file_offset + lower_size,
+                    length         : upper_size,
+                    logical_offset : piece_start_offset + lower_size,
+                });
+
+                piece.length = lower_size;
+                continue;
+            }
+
+            // The deletion area finishes in this piece
+            if start_offset < piece_start_offset && end_offset >= piece_start_offset {
+                let piece      = &mut self.piece_table[index];
+                let upper_size = piece_end_offset - end_offset;
+                let lower_size = end_offset - piece_start_offset;
+
+                action.pieces.push(Piece {
+                    file           : piece.file,
+                    file_offset    : piece.file_offset + lower_size,
+                    length         : lower_size,
+                    logical_offset : piece_start_offset - lower_size,
+                });
+
+                piece.length = upper_size;
+                continue;
+            }
+
+            if start_offset <= piece_start_offset && end_offset >= piece_end_offset {
+                let piece = &mut self.piece_table[index];
+                action.pieces.push(piece.clone());
+                piece.length = 0;
             }
         }
+
+        // It's possible that we left zero-length pieces above. We should delete them.
+        self.piece_table.retain(|ref v| v.length > 0);
+
+        self.update_offsets(start_index);
     }
 }
 
@@ -291,10 +353,12 @@ mod tests {
     #[test]
     fn it_inserts() {
         let mut file = PieceFile::empty().unwrap();
-        assert_eq!(file.piece_table.len(), 1);
+        assert_eq!(file.piece_table.len(), 0);
 
         file.insert("foo", 0);
         file.insert("bar", 0);
+
+        assert_eq!(file.length, 6);
 
         let piece_table = &file.piece_table;
         assert_eq!(piece_table.len(), 2);
@@ -303,14 +367,50 @@ mod tests {
         let second_element = &piece_table[1];
 
         assert_eq!(first_element.file_offset, 3);
+        assert_eq!(first_element.logical_offset, 0);
         assert_eq!(first_element.length, 3);
 
         assert_eq!(second_element.file_offset, 0);
+        assert_eq!(second_element.logical_offset, 3);
         assert_eq!(second_element.length, 3);
 
         let action = &file.actions[0];
         assert_eq!(action.op, Operation::Insert);
 
-        // TODO: when read() is implemented check that this says "barfoo"
+        // TODO: Check the action's steps
+    }
+
+    #[test]
+    fn it_deletes_inside_piece() {
+        let mut file = PieceFile::empty().unwrap();
+        assert_eq!(file.piece_table.len(), 0);
+
+        // Test a delete that occurs inside a piece
+        file.insert("foo", 0);
+        file.delete(1, 1);
+
+        let piece_table = &file.piece_table;
+        assert_eq!(piece_table.len(), 2);
+        assert_eq!(piece_table[0].length, 1);
+        assert_eq!(piece_table[1].length, 1);
+
+        // TODO: check the action's steps
+    }
+
+    #[test]
+    fn it_deletes_across_two_pieces() {
+        let mut file = PieceFile::empty().unwrap();
+        assert_eq!(file.piece_table.len(), 0);
+
+        file.insert("bar", 0);
+        file.insert("foo", 0);
+        file.delete(2,2);
+
+        let piece_table = &file.piece_table;
+        assert_eq!(piece_table.len(), 2);
+        assert_eq!(piece_table[0].length, 2);
+        assert_eq!(piece_table[1].length, 2);
+
+        // TODO: check the action's steps
     }
 }
