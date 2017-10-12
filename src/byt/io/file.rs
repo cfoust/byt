@@ -247,7 +247,7 @@ impl PieceFile {
         let end_offset   = offset + length;
         let start_index  = self.get_at_offset(start_offset).unwrap();
         let end_index    = self.get_at_offset(end_offset).unwrap();
-        let delete_size  = (end_index - start_index) as u32;
+        let delete_size  = ((end_index - start_index) as u32) + 1;
         let num_pieces   = (end_index - start_index) + 1;
 
         let mut action = Action {
@@ -256,6 +256,9 @@ impl PieceFile {
             op     : Operation::Delete,
             pieces : Vec::new()
         };
+
+        // TODO: ensure we don't overflow
+        self.length -= length;
 
         // Deletes can affect multiple pieces if the user wants to delete
         // across piece boundaries. We have to start at the bottom index
@@ -328,7 +331,8 @@ impl PieceFile {
                     logical_offset : piece_start_offset - lower_size,
                 });
 
-                piece.length = upper_size;
+                piece.file_offset += lower_size;
+                piece.length       = upper_size;
                 continue;
             }
 
@@ -339,6 +343,8 @@ impl PieceFile {
                 piece.length = 0;
             }
         }
+
+        self.actions.push(action);
 
         // It's possible that we left zero-length pieces above. We should delete them.
         self.piece_table.retain(|ref v| v.length > 0);
@@ -377,8 +383,8 @@ mod tests {
 
         let action = &file.actions[0];
         assert_eq!(action.op, Operation::Insert);
-
-        // TODO: Check the action's steps
+        assert_eq!(action.length, 3);
+        assert_eq!(action.offset, 0);
     }
 
     #[test]
@@ -394,26 +400,26 @@ mod tests {
         let piece_table = &file.piece_table;
         assert_eq!(piece_table.len(), 3);
 
-        let first_element  = &piece_table[0];
-        let second_element = &piece_table[1];
-        let third_element  = &piece_table[2];
+        let first_piece  = &piece_table[0];
+        let second_piece = &piece_table[1];
+        let third_piece  = &piece_table[2];
 
-        assert_eq!(first_element.file_offset, 0);
-        assert_eq!(first_element.logical_offset, 0);
-        assert_eq!(first_element.length, 1);
+        assert_eq!(first_piece.file_offset, 0);
+        assert_eq!(first_piece.logical_offset, 0);
+        assert_eq!(first_piece.length, 1);
 
-        assert_eq!(second_element.file_offset, 2);
-        assert_eq!(second_element.logical_offset, 1);
-        assert_eq!(second_element.length, 1);
+        assert_eq!(second_piece.file_offset, 2);
+        assert_eq!(second_piece.logical_offset, 1);
+        assert_eq!(second_piece.length, 1);
 
-        assert_eq!(third_element.file_offset, 1);
-        assert_eq!(third_element.logical_offset, 2);
-        assert_eq!(third_element.length, 1);
+        assert_eq!(third_piece.file_offset, 1);
+        assert_eq!(third_piece.logical_offset, 2);
+        assert_eq!(third_piece.length, 1);
 
         let action = &file.actions[0];
         assert_eq!(action.op, Operation::Insert);
-
-        // TODO: Check the action's steps
+        assert_eq!(action.length, 2);
+        assert_eq!(action.offset, 0);
     }
 
     #[test]
@@ -430,7 +436,16 @@ mod tests {
         assert_eq!(piece_table[0].length, 1);
         assert_eq!(piece_table[1].length, 1);
 
-        // TODO: check the action's steps
+        let action = &file.actions[1];
+        assert_eq!(action.op, Operation::Delete);
+        assert_eq!(action.length, 1);
+        assert_eq!(action.offset, 1);
+
+        let piece = &action.pieces[0];
+        assert_eq!(piece.file, SourceFile::Append);
+        assert_eq!(piece.length, 1);
+        assert_eq!(piece.file_offset, 1);
+        assert_eq!(piece.logical_offset, 1);
     }
 
     #[test]
@@ -441,6 +456,8 @@ mod tests {
         file.insert("bar", 0);
         file.insert("foo", 0);
         file.delete(2,2);
+
+        assert_eq!(file.length, 4);
 
         let piece_table = &file.piece_table;
         assert_eq!(piece_table.len(), 2);
@@ -460,8 +477,21 @@ mod tests {
         file.insert("aa", 0);
         file.delete(1, 4);
 
+        assert_eq!(file.length, 2);
+
         let piece_table = &file.piece_table;
         assert_eq!(piece_table.len(), 2);
+
+        let first_piece  = &piece_table[0];
+        let second_piece = &piece_table[1];
+
+        assert_eq!(first_piece.file_offset, 4);
+        assert_eq!(first_piece.logical_offset, 0);
+        assert_eq!(first_piece.length, 1);
+
+        assert_eq!(second_piece.file_offset, 1);
+        assert_eq!(second_piece.logical_offset, 1);
+        assert_eq!(second_piece.length, 1);
 
         // TODO: check the action's steps
     }
