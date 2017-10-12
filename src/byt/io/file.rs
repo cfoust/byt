@@ -298,8 +298,8 @@ impl PieceFile {
                 break
             }
 
-            // The deletion area starts in a piece and goes on to another
-            if start_offset < piece_end_offset && end_offset >= piece_end_offset {
+            // The deletion area starts in this piece and goes on to another
+            if start_offset > piece_start_offset && end_offset >= piece_end_offset {
                 let piece      = &mut self.piece_table[index];
                 let upper_size = piece_end_offset - start_offset;
                 let lower_size = start_offset - piece_start_offset;
@@ -316,7 +316,7 @@ impl PieceFile {
             }
 
             // The deletion area finishes in this piece
-            if start_offset < piece_start_offset && end_offset >= piece_start_offset {
+            if start_offset < piece_start_offset && end_offset <= piece_end_offset {
                 let piece      = &mut self.piece_table[index];
                 let upper_size = piece_end_offset - end_offset;
                 let lower_size = end_offset - piece_start_offset;
@@ -332,6 +332,7 @@ impl PieceFile {
                 continue;
             }
 
+            // The deletion area is outside the bounds of this piece
             if start_offset <= piece_start_offset && end_offset >= piece_end_offset {
                 let piece = &mut self.piece_table[index];
                 action.pieces.push(piece.clone());
@@ -381,6 +382,41 @@ mod tests {
     }
 
     #[test]
+    fn it_inserts_inside_piece() {
+        let mut file = PieceFile::empty().unwrap();
+        assert_eq!(file.piece_table.len(), 0);
+
+        file.insert("aa", 0);
+        file.insert("b", 1);
+
+        assert_eq!(file.length, 3);
+
+        let piece_table = &file.piece_table;
+        assert_eq!(piece_table.len(), 3);
+
+        let first_element  = &piece_table[0];
+        let second_element = &piece_table[1];
+        let third_element  = &piece_table[2];
+
+        assert_eq!(first_element.file_offset, 0);
+        assert_eq!(first_element.logical_offset, 0);
+        assert_eq!(first_element.length, 1);
+
+        assert_eq!(second_element.file_offset, 2);
+        assert_eq!(second_element.logical_offset, 1);
+        assert_eq!(second_element.length, 1);
+
+        assert_eq!(third_element.file_offset, 1);
+        assert_eq!(third_element.logical_offset, 2);
+        assert_eq!(third_element.length, 1);
+
+        let action = &file.actions[0];
+        assert_eq!(action.op, Operation::Insert);
+
+        // TODO: Check the action's steps
+    }
+
+    #[test]
     fn it_deletes_inside_piece() {
         let mut file = PieceFile::empty().unwrap();
         assert_eq!(file.piece_table.len(), 0);
@@ -410,6 +446,22 @@ mod tests {
         assert_eq!(piece_table.len(), 2);
         assert_eq!(piece_table[0].length, 2);
         assert_eq!(piece_table[1].length, 2);
+
+        // TODO: check the action's steps
+    }
+
+    #[test]
+    fn it_deletes_across_three_pieces() {
+        let mut file = PieceFile::empty().unwrap();
+        assert_eq!(file.piece_table.len(), 0);
+
+        file.insert("cc", 0);
+        file.insert("bb", 0);
+        file.insert("aa", 0);
+        file.delete(1, 4);
+
+        let piece_table = &file.piece_table;
+        assert_eq!(piece_table.len(), 2);
 
         // TODO: check the action's steps
     }
