@@ -15,6 +15,7 @@ use std::io::Read;
 use std::io::Seek;
 use std::io::SeekFrom;
 use std::io;
+use std::str;
 
 // SUBMODULES
 mod tests;
@@ -41,6 +42,14 @@ struct Piece {
     length : u64,
     /// The logical offset of the Piece.
     logical_offset : u64,
+}
+
+impl Piece {
+    /// Convert a logical offset, which is piece-table global, to an offset inside
+    /// the Piece's file.
+    pub fn logical_to_file(&self, offset : u64) -> u64 {
+        return (offset - self.logical_offset) + self.file_offset;
+    }
 }
 
 impl fmt::Display for Piece {
@@ -355,11 +364,62 @@ impl PieceFile {
         self.piece_table.retain(|ref v| v.length > 0);
         self.update_offsets(start_index);
     }
-}
 
-impl Read for PieceFile {
-    fn read(&mut self, buf: &mut [u8]) -> io::Result<usize> {
-        Ok(0)
+    /// Read characters from the buffer. The result is guaranteed to contain only
+    /// whole UTF-8 graphemes, but the result is guaranteed to have at MOST
+    /// `num_bytes`. If taking the provided number of bytes would result in a panic
+    /// (i.e if it falls on a UTF8 grapheme boundary) then it takes one grapheme
+    /// fewer.
+    pub fn read(&self, num_bytes : u64) -> io::Result<Box<String>> {
+        let mut result = Box::new(String::new());
+
+        let start_offset = self.offset;
+        let start_index  = self.get_at_offset(start_offset).unwrap();
+        let end_offset   = self.offset + num_bytes - 1;
+        let end_index    = self.get_at_offset(end_offset).unwrap();
+        let num_pieces   = end_index - start_index + 1;
+
+        Ok(result)
+    }
+
+    /// Reads characters from a piece into a destination string. The `offset` refers to
+    /// logical offset in the whole piece table, not file-specific offset.
+    fn read_piece(&mut self, piece : &Piece, offset : u64, num_bytes : u64, dest : &mut String) {
+        let piece_start_offset = piece.logical_offset;
+        let piece_end_offset   = piece_start_offset + piece.length - 1;
+        let mut buf = vec![0 as u8; num_bytes as usize];
+
+        match piece.file {
+            SourceFile::Append => {
+                let append_start_offset   = piece.logical_to_file(offset);
+                let mut append_end_offset = (append_start_offset + num_bytes - 1);
+                let append_bytes          = self.append_file.as_bytes();
+
+                let append_slice = append_bytes
+                    .get(append_start_offset as usize ..
+                         append_end_offset as usize)
+                    .unwrap();
+
+                buf.clone_from_slice(append_slice);
+            },
+            SourceFile::Original => {
+                let mut reader = self.reader.as_mut().unwrap();
+                reader.read(buf.as_mut_slice());
+            },
+        }
+
+        let mut slice = buf.as_slice();
+        let mut index = buf.len() - 1;
+        let mut converted = str::from_utf8(&buf[0..index]);
+
+        // It's possible we'll stumble upon a boundary. If we do, reduce the number of
+        // bytes until all is well.
+        while converted.is_err() {
+            index -= 1;
+            converted = str::from_utf8(&buf[0..index]);
+        }
+
+        dest.push_str(converted.unwrap());
     }
 }
 
