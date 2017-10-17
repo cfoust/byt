@@ -156,3 +156,36 @@ fn it_deletes_across_three_pieces() {
     // TODO: check the action's steps
 }
 
+#[test]
+fn it_reads_inside_piece() {
+    let mut file = PieceFile::empty().unwrap();
+    assert_eq!(file.piece_table.len(), 0);
+
+    file.insert("foobar", 0);
+    let read = file.read(6).unwrap();
+    assert_eq!(read.as_str(), "foobar");
+}
+
+#[test]
+fn it_reads_across_two_pieces() {
+    let mut file = PieceFile::empty().unwrap();
+    assert_eq!(file.piece_table.len(), 0);
+
+    file.insert("bar", 0);
+    file.insert("foo", 0);
+    let read = file.read(6).unwrap();
+    assert_eq!(read.as_str(), "foobar");
+}
+
+#[test]
+fn it_reads_across_three_pieces() {
+    let mut file = PieceFile::empty().unwrap();
+    assert_eq!(file.piece_table.len(), 0);
+
+    file.insert("bar", 0);
+    file.insert("foo", 0);
+    file.insert("car", 0);
+    let read = file.read(9).unwrap();
+    assert_eq!(read.as_str(), "carfoobar");
+}
+
