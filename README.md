@@ -22,3 +22,5 @@ functional. The roadmap is as follows:
       bindings.
 - [ ] Build the basic terminal renderer. In the future, we could render to a standalone
       window of some sort.
+- [ ] As the user works with byt, optionally collect usage information that can suggest
+      more efficient keybindings.
