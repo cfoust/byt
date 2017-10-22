@@ -13,7 +13,7 @@ functional. The roadmap is as follows:
   - [X] Implement a piece table
   - [ ] Allow for undos that properly restore the state of the piece table
   - [ ] Record timestamps for every edit to allow for exploring the file over
-    time in the future
+    time
 - [ ] Set up the rudiments of the editor itself. Should have no knowledge of rendering, just
       implements functionality over buffers.
 - [ ] Include Lua for editor extensibility.

@@ -66,10 +66,19 @@ enum Operation {
 
 /// Records a particular modification of the text.
 struct Action {
+    /// The operation performed
     op     : Operation,
+    /// The logical offset of the beginning of the operation
     offset : u64,
+    /// For a delete operation, contains the pieces deleted
+    /// For an insert operation, contains the piece that was inserted
     pieces : Vec<Piece>,
-    length : u64
+    /// The length (in bytes) of the operation
+    length : u64,
+    /// These two fields are indicators that the pieces inside can be
+    /// merged downwards or upwards when the action is undone.
+    merge_down : bool,
+    merge_up   : bool,
 }
 
 /// Implements logical operations on a file that are not written
@@ -117,6 +126,46 @@ impl PieceFile {
         }
 
         None
+    }
+
+    /// Reads characters from a piece into a destination string. The `offset` refers to
+    /// logical offset in the whole piece table, not file-specific offset.
+    fn read_piece(&mut self, piece : Piece, offset : u64, num_bytes : u64, dest : &mut String) {
+        let piece_start_offset = piece.logical_offset;
+        let piece_end_offset   = piece_start_offset + piece.length - 1;
+        let mut buf = vec![0 as u8; num_bytes as usize];
+
+        match piece.file {
+            SourceFile::Append => {
+                let append_start_offset   = piece.logical_to_file(offset);
+                let mut append_end_offset = append_start_offset + num_bytes;
+                let append_bytes          = self.append_file.as_bytes();
+
+                let append_slice = append_bytes
+                    .get(append_start_offset as usize ..
+                         append_end_offset as usize)
+                    .unwrap();
+
+                buf.clone_from_slice(append_slice);
+            },
+            SourceFile::Original => {
+                let mut reader = self.reader.as_mut().unwrap();
+                reader.read(buf.as_mut_slice());
+            },
+        }
+
+        let mut slice = buf.as_slice();
+        let mut index = buf.len();
+        let mut converted = str::from_utf8(&buf[0..index]);
+
+        // It's possible we'll stumble upon a boundary. If we do, reduce the number of
+        // bytes until all is well.
+        while converted.is_err() {
+            index -= 1;
+            converted = str::from_utf8(&buf[0..index]);
+        }
+
+        dest.push_str(converted.unwrap());
     }
 
     /// Update the logical offsets starting at a certain index.
@@ -198,12 +247,14 @@ impl PieceFile {
             length,
         };
 
-        let action = Action {
+        let mut action = Action {
             op     : Operation::Insert,
             pieces : Vec::new(),
             offset,
             length,
         };
+
+        action.pieces.push(piece.clone());
 
         self.actions.push(action);
 
@@ -366,10 +417,9 @@ impl PieceFile {
     }
 
     /// Read characters from the buffer. The result is guaranteed to contain only
-    /// whole UTF-8 graphemes, but the result is guaranteed to have at MOST
-    /// `num_bytes`. If taking the provided number of bytes would result in a panic
-    /// (i.e if it falls on a UTF8 grapheme boundary) then it takes one grapheme
-    /// fewer.
+    /// whole UTF-8 graphemes and have at MOST `num_bytes`.
+    /// If taking the provided number of bytes would result in a panic (i.e if it
+    /// falls on a UTF8 grapheme boundary) then it takes one grapheme fewer.
     pub fn read(&mut self, num_bytes : u64) -> io::Result<Box<String>> {
         let mut result = Box::new(String::new());
 
@@ -397,7 +447,7 @@ impl PieceFile {
         }
 
         // 2. Handle all of the pieces between the first and the last.
-        if (num_pieces > 2) {
+        if num_pieces > 2 {
             let mut piece_read_bytes   : u64;
             let mut piece_start_offset : u64;
 
@@ -422,46 +472,6 @@ impl PieceFile {
         }
 
         Ok(result)
-    }
-
-    /// Reads characters from a piece into a destination string. The `offset` refers to
-    /// logical offset in the whole piece table, not file-specific offset.
-    fn read_piece(&mut self, piece : Piece, offset : u64, num_bytes : u64, dest : &mut String) {
-        let piece_start_offset = piece.logical_offset;
-        let piece_end_offset   = piece_start_offset + piece.length - 1;
-        let mut buf = vec![0 as u8; num_bytes as usize];
-
-        match piece.file {
-            SourceFile::Append => {
-                let append_start_offset   = piece.logical_to_file(offset);
-                let mut append_end_offset = append_start_offset + num_bytes;
-                let append_bytes          = self.append_file.as_bytes();
-
-                let append_slice = append_bytes
-                    .get(append_start_offset as usize ..
-                         append_end_offset as usize)
-                    .unwrap();
-
-                buf.clone_from_slice(append_slice);
-            },
-            SourceFile::Original => {
-                let mut reader = self.reader.as_mut().unwrap();
-                reader.read(buf.as_mut_slice());
-            },
-        }
-
-        let mut slice = buf.as_slice();
-        let mut index = buf.len();
-        let mut converted = str::from_utf8(&buf[0..index]);
-
-        // It's possible we'll stumble upon a boundary. If we do, reduce the number of
-        // bytes until all is well.
-        while converted.is_err() {
-            index -= 1;
-            converted = str::from_utf8(&buf[0..index]);
-        }
-
-        dest.push_str(converted.unwrap());
     }
 }
 

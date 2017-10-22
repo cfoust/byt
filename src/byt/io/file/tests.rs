@@ -185,6 +185,7 @@ fn it_reads_across_three_pieces() {
     file.insert("bar", 0);
     file.insert("foo", 0);
     file.insert("car", 0);
+
     let read = file.read(9).unwrap();
     assert_eq!(read.as_str(), "carfoobar");
 }
