@@ -106,6 +106,118 @@ impl PieceFile {
     // #################################
     // P R I V A T E  F U N C T I O N S
     // #################################
+    /// Delete some text. Returns an action that represents
+    /// the deletion.
+    pub fn _delete(&mut self, offset : u64, length : u64) -> Action {
+        let start_offset = offset;
+        let end_offset   = offset + length;
+        let start_index  = self.get_at_offset(start_offset).unwrap();
+        let end_index    = self.get_at_offset(end_offset).unwrap();
+        let delete_size  = ((end_index - start_index) as u64) + 1;
+        let num_pieces   = (end_index - start_index) + 1;
+
+        let mut action = Action {
+            length,
+            offset,
+            op     : Operation::Delete,
+            pieces : Vec::new()
+        };
+
+        // TODO: ensure we don't overflow
+        self.length -= length;
+
+        // Edge case : delete is embedded WITHIN a single piece
+        if num_pieces == 1 {
+            let piece              = self.piece_table[start_index].clone();
+            let piece_start_offset = piece.logical_offset;
+            let piece_end_offset   = piece_start_offset + piece.length;
+            let upper_size         = piece_end_offset - end_offset;
+            let lower_size         = start_offset - piece_start_offset;
+
+            action.pieces.push(Piece {
+                file           : piece.file,
+                file_offset    : piece.file_offset + lower_size,
+                length         : delete_size,
+                logical_offset : start_offset,
+            });
+
+            self.piece_table.remove(start_index);
+
+            // We insert the upper part first
+            self.piece_table.insert(start_index, Piece {
+                file           : piece.file,
+                file_offset    : piece.file_offset + lower_size + delete_size,
+                length         : upper_size,
+                logical_offset : start_offset,
+            });
+
+            // Then the lower part
+            self.piece_table.insert(start_index, Piece {
+                file           : piece.file,
+                file_offset    : piece.file_offset,
+                length         : lower_size,
+                logical_offset : piece.logical_offset,
+            });
+
+            return action;
+        }
+
+        // Deletes can affect multiple pieces if the user wants to delete across piece boundaries.
+        // The code below doesn't result in a net positive number of pieces in the piece table. 
+        // We do any deletion necessary in a second pass.
+
+        // 1. Handle the piece the delete starts in.
+        {
+            let piece              = &mut self.piece_table[start_index];
+            let piece_start_offset = piece.logical_offset;
+            let piece_end_offset   = piece_start_offset + piece.length;
+            let upper_size         = piece_end_offset - start_offset;
+            let lower_size         = start_offset - piece_start_offset;
+            piece.length = lower_size;
+
+            action.pieces.push(Piece {
+                file           : piece.file,
+                file_offset    : piece.file_offset + lower_size,
+                length         : upper_size,
+                logical_offset : piece_start_offset + lower_size,
+            });
+        }
+
+        // 2. Handle any pieces in between. They are deleted.
+        if num_pieces > 2 {
+            for index in start_index + 1 .. end_index {
+                let piece = &mut self.piece_table[index];
+                action.pieces.push(piece.clone());
+                piece.length = 0;
+            }
+        }
+
+        // 3. Handle the piece the delete ends in.
+        {
+            let piece              = &mut self.piece_table[end_index];
+            let piece_start_offset = piece.logical_offset;
+            let piece_end_offset   = piece_start_offset + piece.length;
+            let upper_size         = piece_end_offset - end_offset;
+            let lower_size         = end_offset - piece_start_offset;
+
+            action.pieces.push(Piece {
+                file           : piece.file,
+                file_offset    : piece.file_offset + lower_size,
+                length         : lower_size,
+                logical_offset : piece_start_offset - lower_size,
+            });
+
+            piece.file_offset += lower_size;
+            piece.length       = upper_size;
+        }
+
+        // It's possible that we left zero-length pieces above. We should delete them.
+        self.piece_table.retain(|ref v| v.length > 0);
+        self.update_offsets(start_index);
+
+        action
+    }
+
     /// Get a Piece at a particular offset.
     fn get_at_offset(&self, offset : u64) -> Option<usize> {
         let mut logical_length = 0;
@@ -126,6 +238,81 @@ impl PieceFile {
         }
 
         None
+    }
+
+    /// Insert some text. Returns the action corresponding
+    /// to the insert.
+    pub fn _insert(&mut self, text : &str, offset : u64) -> Action {
+        let length = text.len() as u64;
+        let append_offset = self.append_file.len() as u64;
+
+        self.append_file += text;
+        self.length      += length;
+
+        let mut piece = Piece {
+            file   : SourceFile::Append,
+            file_offset : append_offset,
+            logical_offset : 0, // Unknown right now
+            length,
+        };
+
+        let mut action = Action {
+            op     : Operation::Insert,
+            pieces : Vec::new(),
+            offset,
+            length,
+        };
+
+        action.pieces.push(piece.clone());
+
+        // There are edge cases if you do an insert
+        // at the beginning or end of the file.
+        if offset == 0 {
+            self.piece_table.insert(0, piece);
+            self.update_offsets(0);
+            return action;
+        }
+        else if offset + length == self.length {
+            piece.logical_offset = self.length - length;
+            self.piece_table.push(piece);
+            // No need to update offsets, this is the last piece
+            return action;
+        }
+
+        // The insertion may create as many as three pieces. It can
+        // split a piece that already exists into two parts and then
+        // goes in between them.
+        let split_index = match self.get_at_offset(offset) {
+            Some(v) => v,
+            None => return action // TODO: Handle this better
+        };
+        let split_piece = self.piece_table.remove(split_index);
+
+        let lower_size  = offset - split_piece.logical_offset;
+        let upper_size  = (split_piece.logical_offset + split_piece.length) - offset;
+
+        if upper_size > 0 {
+            self.piece_table.insert(split_index, Piece {
+                file           : split_piece.file,
+                file_offset    : split_piece.file_offset + lower_size,
+                length         : upper_size,
+                logical_offset : split_piece.logical_offset + lower_size + length,
+            });
+        }
+
+        self.piece_table.insert(split_index, piece);
+
+        if lower_size > 0 {
+            self.piece_table.insert(split_index, Piece {
+                file           : split_piece.file,
+                file_offset    : split_piece.file_offset,
+                length         : lower_size,
+                logical_offset : split_piece.logical_offset,
+            });
+        }
+        self.update_offsets(split_index);
+
+        action
     }
 
     /// Reads characters from a piece into a destination string. The `offset` refers to
@@ -188,6 +375,35 @@ impl PieceFile {
     // ###############################
     // P U B L I C  F U N C T I O N S
     // ###############################
+
+    /// Delete some bytes in the PieceFile.
+    pub fn delete(&mut self, offset : u64, length : u64) {
+        let action = self._delete(offset, length);
+        self.actions.push(action);
+    }
+
+    /// Create a new empty PieceFile.
+    pub fn empty() -> io::Result<PieceFile> {
+        let mut piece_file = PieceFile {
+            actions     : Vec::new(),
+            append_file : String::new(),
+            length      : 0,
+            offset      : 0,
+            path        : String::from(""),
+            piece_table : Vec::new(),
+            reader      : None,
+        };
+
+        Ok(piece_file)
+    }
+
+    /// Insert some text. Returns the action corresponding
+    /// to the insert.
+    pub fn insert(&mut self, text : &str, offset : u64) {
+        let action = self._insert(text, offset);
+        self.actions.push(action);
+    }
+
     /// Open a new PieceFile. If the file doesn't exist, it is created.
     pub fn open(path : String) -> io::Result<PieceFile> {
         let file = OpenOptions::new()
@@ -215,205 +431,6 @@ impl PieceFile {
         });
 
         Ok(piece_file)
-    }
-
-    /// Create a new empty PieceFile.
-    pub fn empty() -> io::Result<PieceFile> {
-        let mut piece_file = PieceFile {
-            actions     : Vec::new(),
-            append_file : String::new(),
-            length      : 0,
-            offset      : 0,
-            path        : String::from(""),
-            piece_table : Vec::new(),
-            reader      : None,
-        };
-
-        Ok(piece_file)
-    }
-
-    /// Insert some text.
-    pub fn insert(&mut self, text : &str, offset : u64) {
-        let length = text.len() as u64;
-        let append_offset = self.append_file.len() as u64;
-
-        self.append_file += text;
-        self.length      += length;
-
-        let mut piece = Piece {
-            file   : SourceFile::Append,
-            file_offset : append_offset,
-            logical_offset : 0, // Unknown right now
-            length,
-        };
-
-        let mut action = Action {
-            op     : Operation::Insert,
-            pieces : Vec::new(),
-            offset,
-            length,
-        };
-
-        action.pieces.push(piece.clone());
-        self.actions.push(action);
-
-        // There are edge cases if you do an insert
-        // at the beginning or end of the file.
-        if offset == 0 {
-            self.piece_table.insert(0, piece);
-            self.update_offsets(0);
-            return;
-        }
-        else if offset + length == self.length {
-            piece.logical_offset = self.length - length;
-            self.piece_table.push(piece);
-            // No need to update offsets, this is the last piece
-            return;
-        }
-
-        // The insertion may create as many as three pieces. It can
-        // split a piece that already exists into two parts and then
-        // goes in between them.
-        let split_index = match self.get_at_offset(offset) {
-            Some(v) => v,
-            None => return // TODO: Handle this better
-        };
-        let split_piece = self.piece_table.remove(split_index);
-
-        let lower_size  = offset - split_piece.logical_offset;
-        let upper_size  = (split_piece.logical_offset + split_piece.length) - offset;
-
-        if upper_size > 0 {
-            self.piece_table.insert(split_index, Piece {
-                file           : split_piece.file,
-                file_offset    : split_piece.file_offset + lower_size,
-                length         : upper_size,
-                logical_offset : split_piece.logical_offset + lower_size + length,
-            });
-        }
-
-        self.piece_table.insert(split_index, piece);
-
-        if lower_size > 0 {
-            self.piece_table.insert(split_index, Piece {
-                file           : split_piece.file,
-                file_offset    : split_piece.file_offset,
-                length         : lower_size,
-                logical_offset : split_piece.logical_offset,
-            });
-        }
-        self.update_offsets(split_index);
-    }
-
-    /// Delete some text.
-    pub fn delete(&mut self, offset : u64, length : u64) {
-        let start_offset = offset;
-        let end_offset   = offset + length;
-        let start_index  = self.get_at_offset(start_offset).unwrap();
-        let end_index    = self.get_at_offset(end_offset).unwrap();
-        let delete_size  = ((end_index - start_index) as u64) + 1;
-        let num_pieces   = (end_index - start_index) + 1;
-
-        let mut action = Action {
-            length,
-            offset,
-            op     : Operation::Delete,
-            pieces : Vec::new()
-        };
-
-        // TODO: ensure we don't overflow
-        self.length -= length;
-
-        // Edge case : delete is embedded WITHIN a single piece
-        if num_pieces == 1 {
-            let piece              = self.piece_table[start_index].clone();
-            let piece_start_offset = piece.logical_offset;
-            let piece_end_offset   = piece_start_offset + piece.length;
-            let upper_size         = piece_end_offset - end_offset;
-            let lower_size         = start_offset - piece_start_offset;
-
-            action.pieces.push(Piece {
-                file           : piece.file,
-                file_offset    : piece.file_offset + lower_size,
-                length         : delete_size,
-                logical_offset : start_offset,
-            });
-
-            self.piece_table.remove(start_index);
-
-            // We insert the upper part first
-            self.piece_table.insert(start_index, Piece {
-                file           : piece.file,
-                file_offset    : piece.file_offset + lower_size + delete_size,
-                length         : upper_size,
-                logical_offset : start_offset,
-            });
-
-            // Then the lower part
-            self.piece_table.insert(start_index, Piece {
-                file           : piece.file,
-                file_offset    : piece.file_offset,
-                length         : lower_size,
-                logical_offset : piece.logical_offset,
-            });
-
-            self.actions.push(action);
-            return;
-        }
-
-        // Deletes can affect multiple pieces if the user wants to delete across piece boundaries.
-        // The code below doesn't result in a net positive number of pieces in the piece table. 
-        // We do any deletion necessary in a second pass.
-
-        // 1. Handle the piece the delete starts in.
-        {
-            let piece              = &mut self.piece_table[start_index];
-            let piece_start_offset = piece.logical_offset;
-            let piece_end_offset   = piece_start_offset + piece.length;
-            let upper_size         = piece_end_offset - start_offset;
-            let lower_size         = start_offset - piece_start_offset;
-            piece.length = lower_size;
-
-            action.pieces.push(Piece {
-                file           : piece.file,
-                file_offset    : piece.file_offset + lower_size,
-                length         : upper_size,
-                logical_offset : piece_start_offset + lower_size,
-            });
-        }
-
-        // 2. Handle any pieces in between. They are deleted.
-        if num_pieces > 2 {
-            for index in start_index + 1 .. end_index {
-                let piece = &mut self.piece_table[index];
-                action.pieces.push(piece.clone());
-                piece.length = 0;
-            }
-        }
-
-        // 3. Handle the piece the delete ends in.
-        {
-            let piece              = &mut self.piece_table[end_index];
-            let piece_start_offset = piece.logical_offset;
-            let piece_end_offset   = piece_start_offset + piece.length;
-            let upper_size         = piece_end_offset - end_offset;
-            let lower_size         = end_offset - piece_start_offset;
-
-            action.pieces.push(Piece {
-                file           : piece.file,
-                file_offset    : piece.file_offset + lower_size,
-                length         : lower_size,
-                logical_offset : piece_start_offset - lower_size,
-            });
-
-            piece.file_offset += lower_size;
-            piece.length       = upper_size;
-        }
-
-        // It's possible that we left zero-length pieces above. We should delete them.
-        self.piece_table.retain(|ref v| v.length > 0);
-        self.update_offsets(start_index);
-        self.actions.push(action);
     }
 
     /// Read characters from the buffer. The result is guaranteed to contain only
