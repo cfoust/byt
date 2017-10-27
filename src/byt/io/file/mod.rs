@@ -75,10 +75,10 @@ struct Action {
     pieces : Vec<Piece>,
     /// The length (in bytes) of the operation
     length : u64,
-    ///// These two fields are indicators that the pieces inside can be
-    ///// merged downwards or upwards when the action is undone.
-    //merge_down : bool,
-    //merge_up   : bool,
+    /// These two fields are indicators that the pieces inside can be
+    /// merged downwards or upwards when the action is undone.
+    merge_down : bool,
+    merge_up   : bool,
 }
 
 /// Implements logical operations on a file that are not written
@@ -119,8 +119,10 @@ impl PieceFile {
         let mut action = Action {
             length,
             offset,
-            op     : Operation::Delete,
-            pieces : Vec::new()
+            op         : Operation::Delete,
+            pieces     : Vec::new(),
+            merge_down : false,
+            merge_up   : false,
         };
 
         // TODO: ensure we don't overflow
@@ -261,6 +263,12 @@ impl PieceFile {
             pieces : Vec::new(),
             offset,
             length,
+            // By convention inserts always have
+            // merge_down as true. An insert always
+            // splits a piece unless there isn't a piece
+            // above or below it.
+            merge_down : true,
+            merge_up   : false,
         };
 
         action.pieces.push(piece.clone());
@@ -489,6 +497,42 @@ impl PieceFile {
         }
 
         Ok(result)
+    }
+
+    /// Attempt to merge two pieces together given the index of the lower
+    /// piece. Will do nothing if the merge fails.
+    fn merge_pieces(&mut self, index : u64) {
+    }
+
+    /// Undo the most recent change to the buffer.
+    ///
+    /// In the future it might be worthwhile to make this into
+    /// a tree like vim does it, but frankly I never use that feature
+    /// and don't find it that useful.
+    pub fn undo(&mut self) {
+        if self.actions.len() == 0 {
+            return;
+        }
+
+        let action = self.actions.pop().unwrap();
+        let index = self.get_at_offset(action.offset).unwrap();
+
+        // Inserts are simple. Just remove the piece and merge.
+        if action.op == Operation::Insert {
+            self.piece_table.remove(index);
+
+            if action.merge_down && index > 0 {
+                self.merge_pieces((index as u64) - 1);
+            }
+
+            self.update_offsets(index - 1);
+            return;
+        }
+
+        // Otherwise it's a delete.
+        for piece in action.pieces {
+            self.piece_table.insert(index, piece);
+        }
     }
 }
 
