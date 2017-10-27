@@ -75,10 +75,10 @@ struct Action {
     pieces : Vec<Piece>,
     /// The length (in bytes) of the operation
     length : u64,
-    /// These two fields are indicators that the pieces inside can be
-    /// merged downwards or upwards when the action is undone.
-    merge_down : bool,
-    merge_up   : bool,
+    ///// These two fields are indicators that the pieces inside can be
+    ///// merged downwards or upwards when the action is undone.
+    //merge_down : bool,
+    //merge_up   : bool,
 }
 
 /// Implements logical operations on a file that are not written
@@ -255,7 +255,6 @@ impl PieceFile {
         };
 
         action.pieces.push(piece.clone());
-
         self.actions.push(action);
 
         // There are edge cases if you do an insert
@@ -325,95 +324,96 @@ impl PieceFile {
         // TODO: ensure we don't overflow
         self.length -= length;
 
-        // Deletes can affect multiple pieces if the user wants to delete
-        // across piece boundaries. We have to start at the bottom index
-        // and move up. The code below doesn't result in a net positive number
-        // of pieces in the piece table. We do any deletion necessary in a second
-        // pass.
-        for index in start_index .. end_index + 1 {
-            let piece              = self.piece_table[index].clone();
+        // Edge case : delete is embedded WITHIN a single piece
+        if num_pieces == 1 {
+            let piece              = self.piece_table[start_index].clone();
             let piece_start_offset = piece.logical_offset;
-            let piece_end_offset   = piece.logical_offset + piece.length;
+            let piece_end_offset   = piece_start_offset + piece.length;
+            let upper_size         = piece_end_offset - end_offset;
+            let lower_size         = start_offset - piece_start_offset;
 
-            // Edge case : delete is embedded WITHIN a single piece
-            if start_offset > piece_start_offset && end_offset < piece_end_offset {
-                self.piece_table.remove(index);
-                let upper_size = piece_end_offset - end_offset;
-                let lower_size = start_offset - piece_start_offset;
+            action.pieces.push(Piece {
+                file           : piece.file,
+                file_offset    : piece.file_offset + lower_size,
+                length         : delete_size,
+                logical_offset : start_offset,
+            });
 
-                action.pieces.push(Piece {
-                    file           : piece.file,
-                    file_offset    : piece.file_offset + lower_size,
-                    length         : delete_size,
-                    logical_offset : start_offset,
-                });
+            self.piece_table.remove(start_index);
 
-                // We insert the upper part first
-                self.piece_table.insert(index, Piece {
-                    file           : piece.file,
-                    file_offset    : piece.file_offset + lower_size + delete_size,
-                    length         : upper_size,
-                    logical_offset : start_offset,
-                });
+            // We insert the upper part first
+            self.piece_table.insert(start_index, Piece {
+                file           : piece.file,
+                file_offset    : piece.file_offset + lower_size + delete_size,
+                length         : upper_size,
+                logical_offset : start_offset,
+            });
 
-                // Then the lower part
-                self.piece_table.insert(index, Piece {
-                    file           : piece.file,
-                    file_offset    : piece.file_offset,
-                    length         : lower_size,
-                    logical_offset : piece.logical_offset,
-                });
-                break
-            }
+            // Then the lower part
+            self.piece_table.insert(start_index, Piece {
+                file           : piece.file,
+                file_offset    : piece.file_offset,
+                length         : lower_size,
+                logical_offset : piece.logical_offset,
+            });
 
-            // The deletion area starts in this piece and goes on to another
-            if start_offset > piece_start_offset && end_offset >= piece_end_offset {
-                let piece      = &mut self.piece_table[index];
-                let upper_size = piece_end_offset - start_offset;
-                let lower_size = start_offset - piece_start_offset;
+            self.actions.push(action);
+            return;
+        }
 
-                action.pieces.push(Piece {
-                    file           : piece.file,
-                    file_offset    : piece.file_offset + lower_size,
-                    length         : upper_size,
-                    logical_offset : piece_start_offset + lower_size,
-                });
+        // Deletes can affect multiple pieces if the user wants to delete across piece boundaries.
+        // The code below doesn't result in a net positive number of pieces in the piece table. 
+        // We do any deletion necessary in a second pass.
 
-                piece.length = lower_size;
-                continue;
-            }
+        // 1. Handle the piece the delete starts in.
+        {
+            let piece              = &mut self.piece_table[start_index];
+            let piece_start_offset = piece.logical_offset;
+            let piece_end_offset   = piece_start_offset + piece.length;
+            let upper_size         = piece_end_offset - start_offset;
+            let lower_size         = start_offset - piece_start_offset;
+            piece.length = lower_size;
 
-            // The deletion area finishes in this piece
-            if start_offset < piece_start_offset && end_offset <= piece_end_offset {
-                let piece      = &mut self.piece_table[index];
-                let upper_size = piece_end_offset - end_offset;
-                let lower_size = end_offset - piece_start_offset;
+            action.pieces.push(Piece {
+                file           : piece.file,
+                file_offset    : piece.file_offset + lower_size,
+                length         : upper_size,
+                logical_offset : piece_start_offset + lower_size,
+            });
+        }
 
-                action.pieces.push(Piece {
-                    file           : piece.file,
-                    file_offset    : piece.file_offset + lower_size,
-                    length         : lower_size,
-                    logical_offset : piece_start_offset - lower_size,
-                });
-
-                piece.file_offset += lower_size;
-                piece.length       = upper_size;
-                continue;
-            }
-
-            // The deletion area is outside the bounds of this piece
-            if start_offset <= piece_start_offset && end_offset >= piece_end_offset {
+        // 2. Handle any pieces in between. They are deleted.
+        if num_pieces > 2 {
+            for index in start_index + 1 .. end_index {
                 let piece = &mut self.piece_table[index];
                 action.pieces.push(piece.clone());
                 piece.length = 0;
             }
         }
 
-        self.actions.push(action);
+        // 3. Handle the piece the delete ends in.
+        {
+            let piece              = &mut self.piece_table[end_index];
+            let piece_start_offset = piece.logical_offset;
+            let piece_end_offset   = piece_start_offset + piece.length;
+            let upper_size         = piece_end_offset - end_offset;
+            let lower_size         = end_offset - piece_start_offset;
+
+            action.pieces.push(Piece {
+                file           : piece.file,
+                file_offset    : piece.file_offset + lower_size,
+                length         : lower_size,
+                logical_offset : piece_start_offset - lower_size,
+            });
+
+            piece.file_offset += lower_size;
+            piece.length       = upper_size;
+        }
 
         // It's possible that we left zero-length pieces above. We should delete them.
         self.piece_table.retain(|ref v| v.length > 0);
         self.update_offsets(start_index);
+        self.actions.push(action);
     }
 
     /// Read characters from the buffer. The result is guaranteed to contain only
