@@ -165,7 +165,7 @@ impl PieceFile {
         }
 
         // Deletes can affect multiple pieces if the user wants to delete across piece boundaries.
-        // The code below doesn't result in a net positive number of pieces in the piece table. 
+        // The code below doesn't result in a net positive number of pieces in the piece table.
         // We do any deletion necessary in a second pass.
 
         // 1. Handle the piece the delete starts in.
@@ -500,8 +500,26 @@ impl PieceFile {
     }
 
     /// Attempt to merge two pieces together given the index of the lower
-    /// piece. Will do nothing if the merge fails.
-    fn merge_pieces(&mut self, index : u64) {
+    /// piece.
+    fn merge_pieces(&mut self, index : usize) {
+        let upper_index        = index + 1;
+        let upper_piece        = self.piece_table[upper_index].clone();
+        let upper_start_offset = upper_piece.file_offset;
+
+        {
+            let lower_piece        = &mut self.piece_table[index];
+            let lower_end_offset   = lower_piece.file_offset + lower_piece.length;
+
+            // Something is amiss. Don't merge noncontiguous pieces.
+            if (lower_end_offset != upper_start_offset) {
+                panic!("Attempting to merge noncontiguous pieces!");
+            }
+
+            lower_piece.length += upper_piece.length;
+        }
+
+        self.piece_table.remove(upper_index);
+        self.update_offsets(index);
     }
 
     /// Undo the most recent change to the buffer.
@@ -514,24 +532,27 @@ impl PieceFile {
             return;
         }
 
-        let action = self.actions.pop().unwrap();
-        let index = self.get_at_offset(action.offset).unwrap();
+        let action     = self.actions.pop().unwrap();
+        let index      = self.get_at_offset(action.offset).unwrap();
+        let last_index = index + action.pieces.len() - 1;
 
-        // Inserts are simple. Just remove the piece and merge.
         if action.op == Operation::Insert {
+            // Inserts are simple. Just remove the piece and merge.
             self.piece_table.remove(index);
-
-            if action.merge_down && index > 0 {
-                self.merge_pieces((index as u64) - 1);
+        } else {
+            // Delete operations should have a list of pieces that
+            // they removed.
+            for piece in action.pieces {
+                self.piece_table.insert(index, piece);
             }
-
-            self.update_offsets(index - 1);
-            return;
         }
 
-        // Otherwise it's a delete.
-        for piece in action.pieces {
-            self.piece_table.insert(index, piece);
+        if action.merge_down {
+            self.merge_pieces(index - 1);
+        }
+
+        if action.merge_up {
+            self.merge_pieces(last_index);
         }
     }
 }
