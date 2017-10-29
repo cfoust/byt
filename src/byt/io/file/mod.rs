@@ -143,6 +143,9 @@ impl PieceFile {
                 logical_offset : start_offset,
             });
 
+            action.merge_up   = true;
+            action.merge_down = true;
+
             self.piece_table.remove(start_index);
 
             // We insert the upper part first
@@ -177,6 +180,10 @@ impl PieceFile {
             let lower_size         = start_offset - piece_start_offset;
             piece.length = lower_size;
 
+            if upper_size > 0 {
+                action.merge_down = true;
+            }
+
             action.pieces.push(Piece {
                 file           : piece.file,
                 file_offset    : piece.file_offset + lower_size,
@@ -201,6 +208,10 @@ impl PieceFile {
             let piece_end_offset   = piece_start_offset + piece.length;
             let upper_size         = piece_end_offset - end_offset;
             let lower_size         = end_offset - piece_start_offset;
+
+            if lower_size > 0 {
+                action.merge_up = true;
+            }
 
             action.pieces.push(Piece {
                 file           : piece.file,
@@ -267,7 +278,7 @@ impl PieceFile {
             // merge_down as true. An insert always
             // splits a piece unless there isn't a piece
             // above or below it.
-            merge_down : true,
+            merge_down : false,
             merge_up   : false,
         };
 
@@ -283,6 +294,7 @@ impl PieceFile {
         else if offset + length == self.length {
             piece.logical_offset = self.length - length;
             self.piece_table.push(piece);
+
             // No need to update offsets, this is the last piece
             return action;
         }
@@ -318,6 +330,11 @@ impl PieceFile {
                 logical_offset : split_piece.logical_offset,
             });
         }
+
+        if lower_size > 0 && upper_size > 0 {
+            action.merge_down = true;
+        }
+
         self.update_offsets(split_index);
 
         action
@@ -344,12 +361,12 @@ impl PieceFile {
                 buf.clone_from_slice(append_slice);
             },
             SourceFile::Original => {
-                let mut reader = self.reader.as_mut().unwrap();
+                let reader = self.reader.as_mut().unwrap();
                 reader.read(buf.as_mut_slice());
             },
         }
 
-        let mut slice = buf.as_slice();
+        let slice = buf.as_slice();
         let mut index = buf.len();
         let mut converted = str::from_utf8(&buf[0..index]);
 
@@ -392,7 +409,7 @@ impl PieceFile {
 
     /// Create a new empty PieceFile.
     pub fn empty() -> io::Result<PieceFile> {
-        let mut piece_file = PieceFile {
+        let piece_file = PieceFile {
             actions     : Vec::new(),
             append_file : String::new(),
             length      : 0,
@@ -547,28 +564,28 @@ impl PieceFile {
             }
         }
 
-        if action.merge_down {
-            self.merge_pieces(index - 1);
-        }
-
         if action.merge_up {
             self.merge_pieces(last_index);
+        }
+
+        if action.merge_down {
+            self.merge_pieces(index - 1);
         }
     }
 }
 
 impl Seek for PieceFile {
     fn seek(&mut self, pos : SeekFrom) -> io::Result<u64> {
-        let newOffset = match pos {
+        let new_offset = match pos {
             SeekFrom::Start(v)   => v as i64,
             SeekFrom::End(v)     => (self.length as i64) + v,
             SeekFrom::Current(v) => (self.offset as i64) + v,
         };
 
-        if newOffset < 0 {
+        if new_offset < 0 {
             panic!("Seek offset less than 0");
         }
 
-        Ok(newOffset as u64)
+        Ok(new_offset as u64)
     }
 }
