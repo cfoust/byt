@@ -196,7 +196,7 @@ impl PieceFile {
         if num_pieces > 2 {
             for index in start_index + 1 .. end_index {
                 let piece = &mut self.piece_table[index];
-                action.pieces.push(piece.clone());
+                action.pieces.insert(0, piece.clone());
                 piece.length = 0;
             }
         }
@@ -213,9 +213,9 @@ impl PieceFile {
                 action.merge_up = true;
             }
 
-            action.pieces.push(Piece {
+            action.pieces.insert(0, Piece {
                 file           : piece.file,
-                file_offset    : piece.file_offset + lower_size,
+                file_offset    : piece.file_offset,
                 length         : lower_size,
                 logical_offset : piece_start_offset - lower_size,
             });
@@ -587,6 +587,10 @@ impl PieceFile {
         if action.merge_down && index > 0 {
             self.merge_pieces(index - 1);
         }
+
+        // TODO make this smarter. We really don't have to start
+        // from zero.
+        self.update_offsets(0);
     }
 }
 

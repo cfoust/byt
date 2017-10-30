@@ -117,13 +117,13 @@ fn it_deletes_across_two_pieces() {
     let first_piece = &action.pieces[0];
     assert_eq!(first_piece.file, SourceFile::Append);
     assert_eq!(first_piece.length, 1);
-    assert_eq!(first_piece.file_offset, 5);
+    assert_eq!(first_piece.file_offset, 0);
     assert_eq!(first_piece.logical_offset, 2);
 
     let second_piece = &action.pieces[1];
     assert_eq!(second_piece.file, SourceFile::Append);
     assert_eq!(second_piece.length, 1);
-    assert_eq!(second_piece.file_offset, 1);
+    assert_eq!(second_piece.file_offset, 5);
     assert_eq!(second_piece.logical_offset, 2);
 }
 
@@ -211,6 +211,9 @@ fn it_undoes_a_delete() {
     file.undo();
 
     assert_eq!(file.piece_table.len(), 1);
+
+    let read = file.read(3).unwrap();
+    assert_eq!(read.as_str(), "bar");
 }
 
 #[test]
@@ -221,9 +224,12 @@ fn it_undoes_a_delete_across_two_pieces() {
     file.insert("bar", 0);
     file.insert("foo", 0);
     file.delete(0, 6);
+    assert_eq!(file.piece_table.len(), 0);
     file.undo();
-
     assert_eq!(file.piece_table.len(), 2);
+
+    let read = file.read(6).unwrap();
+    assert_eq!(read.as_str(), "foobar");
 }
 
 #[test]
@@ -238,6 +244,7 @@ fn it_undoes_a_delete_across_three_pieces() {
     file.undo();
 
     assert_eq!(file.piece_table.len(), 3);
+
+    let read = file.read(9).unwrap();
+    assert_eq!(read.as_str(), "carfoobar");
 }
-
-
