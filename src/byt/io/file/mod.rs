@@ -54,7 +54,7 @@ impl Piece {
 
 impl fmt::Display for Piece {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        write!(f, "{:?}:{} ({}:{})", self.file, self.file_offset, self.logical_offset, self.length)
+        write!(f, "file={:?}[{}] logical_offset={} length={}", self.file, self.file_offset, self.logical_offset, self.length)
     }
 }
 
@@ -111,8 +111,8 @@ impl PieceFile {
     pub fn _delete(&mut self, offset : u64, length : u64) -> Action {
         let start_offset = offset;
         let end_offset   = offset + length;
-        let start_index  = self.get_at_offset(start_offset).unwrap();
-        let end_index    = self.get_at_offset(end_offset).unwrap();
+        let start_index  = self.get_at_offset(start_offset);
+        let end_index    = self.get_at_offset(end_offset);
         let delete_size  = ((end_index - start_index) as u64) + 1;
         let num_pieces   = (end_index - start_index) + 1;
 
@@ -232,25 +232,27 @@ impl PieceFile {
     }
 
     /// Get a Piece at a particular offset.
-    fn get_at_offset(&self, offset : u64) -> Option<usize> {
+    fn get_at_offset(&self, offset : u64) -> usize {
         let mut logical_length = 0;
 
-        // This has to be O(N) for the time being unless we want
-        // to update all logical offsets when the table changes.
-        // On modern hardware this will hardly be a bottleneck,
-        // but we'll see.
+        // TODO rewrite to be binary search as we have logical
+        // offsets now
         for index in 0..self.piece_table.len() {
-            let piece = &self.piece_table[index];
-            logical_length += piece.length;
+            let piece            = &self.piece_table[index];
+            let piece_end_offset = piece.logical_offset + piece.length;
 
-            if offset > logical_length {
+            if offset >= piece_end_offset {
                 continue;
             }
 
-            return Some(index);
+            return index;
         }
 
-        None
+        if (self.piece_table.len() == 0) {
+            return 0;
+        }
+
+        self.piece_table.len() - 1
     }
 
     /// Insert some text. Returns the action corresponding
@@ -302,10 +304,7 @@ impl PieceFile {
         // The insertion may create as many as three pieces. It can
         // split a piece that already exists into two parts and then
         // goes in between them.
-        let split_index = match self.get_at_offset(offset) {
-            Some(v) => v,
-            None => return action // TODO: Handle this better
-        };
+        let split_index = self.get_at_offset(offset);
         let split_piece = self.piece_table.remove(split_index);
 
         let lower_size  = offset - split_piece.logical_offset;
@@ -382,6 +381,10 @@ impl PieceFile {
 
     /// Update the logical offsets starting at a certain index.
     fn update_offsets(&mut self, start_index : usize) {
+        if self.piece_table.len() == 0 {
+            return;
+        }
+
         // Don't do anything if this is the last index
         if start_index == self.piece_table.len() - 1 {
             return;
@@ -466,9 +469,12 @@ impl PieceFile {
         let mut result = Box::new(String::new());
 
         let start_offset = self.offset;
-        let start_index  = self.get_at_offset(start_offset).unwrap();
-        let end_offset   = self.offset + num_bytes;
-        let end_index    = self.get_at_offset(end_offset).unwrap();
+        let start_index  = self.get_at_offset(start_offset);
+        // Often you'll see the ending offset be exclusive of the rest of
+        // the selection. Here we want it to be end inclusive, so we subtract
+        // one from the offset. Off-by-one errors are hard.
+        let end_offset   = self.offset + num_bytes - 1;
+        let end_index    = self.get_at_offset(end_offset);
         let num_pieces   = end_index - start_index + 1;
 
         // Same as delete. There is an edge case where we read solely inside
@@ -507,7 +513,11 @@ impl PieceFile {
         // 3. Handle the piece the read ends in.
         {
             let piece = self.piece_table[end_index].clone();
-            let piece_read_bytes   = end_offset - piece.logical_offset;
+            // In this specific case, we need to re-add the one back in.
+            // This is because read_piece does its own subtraction by one
+            // so we don't need it in this specific calculation.
+            // I understand why this might be confusing, but it works.
+            let piece_read_bytes   = end_offset - piece.logical_offset + 1;
             let piece_start_offset = piece.logical_offset;
 
             self.read_piece(piece, piece_start_offset, piece_read_bytes, &mut result);
@@ -550,7 +560,7 @@ impl PieceFile {
         }
 
         let action     = self.actions.pop().unwrap();
-        let index      = self.get_at_offset(action.offset).unwrap();
+        let index      = self.get_at_offset(action.offset);
         let last_index = index + action.pieces.len() - 1;
 
         if action.op == Operation::Insert {
@@ -564,11 +574,17 @@ impl PieceFile {
             }
         }
 
-        if action.merge_up {
+        // We want the piece table to look EXACTLY like it did
+        // before the operation was performed.
+        //
+        // There aren't any real advantages to this other than
+        // making me feel good for the time being.
+
+        if action.merge_up && last_index + 1 < self.piece_table.len() {
             self.merge_pieces(last_index);
         }
 
-        if action.merge_down {
+        if action.merge_down && index > 0 {
             self.merge_pieces(index - 1);
         }
     }

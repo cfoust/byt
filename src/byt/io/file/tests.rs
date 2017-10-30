@@ -190,3 +190,54 @@ fn it_reads_across_three_pieces() {
     assert_eq!(read.as_str(), "carfoobar");
 }
 
+#[test]
+fn it_undoes_an_insert() {
+    let mut file = PieceFile::empty().unwrap();
+    assert_eq!(file.piece_table.len(), 0);
+
+    file.insert("bar", 0);
+    file.undo();
+
+    assert_eq!(file.piece_table.len(), 0);
+}
+
+#[test]
+fn it_undoes_a_delete() {
+    let mut file = PieceFile::empty().unwrap();
+    assert_eq!(file.piece_table.len(), 0);
+
+    file.insert("bar", 0);
+    file.delete(1, 1);
+    file.undo();
+
+    assert_eq!(file.piece_table.len(), 1);
+}
+
+#[test]
+fn it_undoes_a_delete_across_two_pieces() {
+    let mut file = PieceFile::empty().unwrap();
+    assert_eq!(file.piece_table.len(), 0);
+
+    file.insert("bar", 0);
+    file.insert("foo", 0);
+    file.delete(0, 6);
+    file.undo();
+
+    assert_eq!(file.piece_table.len(), 2);
+}
+
+#[test]
+fn it_undoes_a_delete_across_three_pieces() {
+    let mut file = PieceFile::empty().unwrap();
+    assert_eq!(file.piece_table.len(), 0);
+
+    file.insert("bar", 0);
+    file.insert("foo", 0);
+    file.insert("car", 0);
+    file.delete(0, 9);
+    file.undo();
+
+    assert_eq!(file.piece_table.len(), 3);
+}
+
+
