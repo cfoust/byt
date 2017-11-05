@@ -85,6 +85,22 @@ struct Action {
     merge_up   : bool,
 }
 
+impl fmt::Display for Action {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        write!(f, "op={:?} {}+{} down={} up={}\n",
+               self.op,
+               self.offset,
+               self.length,
+               self.merge_down,
+               self.merge_up);
+        write!(f, "action pieces\n");
+        for piece in &self.pieces {
+            write!(f, "{}\n", piece);
+        }
+        write!(f, "end of action pieces\n")
+    }
+}
+
 /// Implements logical operations on a file that are not written
 /// until asked to.
 pub struct PieceFile {
@@ -107,6 +123,21 @@ pub struct PieceFile {
     piece_table : Vec<Piece>,
     /// The seekable file reader.
     reader : Option<BufReader<File>>,
+}
+
+impl fmt::Display for PieceFile {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        write!(f, "PieceFile\n");
+        write!(f, "history_offset={}\n", self.history_offset);
+        write!(f, "length={}\n", self.length);
+        write!(f, "offset={}\n", self.offset);
+        write!(f, "path={}\n", self.path);
+        write!(f, "piece_table len({})\n", self.piece_table.len());
+        for piece in &self.piece_table {
+            write!(f, "{}\n", piece);
+        }
+        write!(f, "end piece table")
+    }
 }
 
 impl PieceFile {
@@ -146,7 +177,7 @@ impl PieceFile {
             action.pieces.push(Piece {
                 file           : piece.file,
                 file_offset    : piece.file_offset + lower_size,
-                length         : delete_size,
+                length         : length,
                 logical_offset : start_offset,
             });
 
@@ -159,7 +190,7 @@ impl PieceFile {
             if upper_size > 0 {
                 self.piece_table.insert(start_index, Piece {
                     file           : piece.file,
-                    file_offset    : piece.file_offset + lower_size + delete_size,
+                    file_offset    : piece.file_offset + lower_size + length,
                     length         : upper_size,
                     logical_offset : start_offset,
                 });
