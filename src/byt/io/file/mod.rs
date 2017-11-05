@@ -649,7 +649,8 @@ impl PieceFile {
     ///
     /// Will do nothing if there is nothing to be undone.
     pub fn undo(&mut self) {
-        if self.actions.len() == 0 {
+        if self.actions.len() == 0 ||
+           self.history_offset == self.actions.len() {
             return;
         }
 

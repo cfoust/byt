@@ -332,3 +332,33 @@ fn it_redoes_a_delete() {
     let read = file.read(2).unwrap();
     assert_eq!(read.as_str(), "fo");
 }
+
+#[test]
+fn it_does_not_panic_after_many_undos() {
+    let mut file = PieceFile::empty().unwrap();
+    assert_eq!(file.piece_table.len(), 0);
+
+    file.insert("foobar", 0);
+    assert_eq!(file.piece_table.len(), 1);
+
+    file.undo();
+    file.undo();
+    file.undo();
+    file.undo();
+    file.undo();
+}
+
+#[test]
+fn it_does_not_panic_after_many_redos() {
+    let mut file = PieceFile::empty().unwrap();
+    assert_eq!(file.piece_table.len(), 0);
+
+    file.insert("foobar", 0);
+    assert_eq!(file.piece_table.len(), 1);
+
+    file.undo();
+    file.redo();
+    file.redo();
+    file.redo();
+    file.redo();
+}
