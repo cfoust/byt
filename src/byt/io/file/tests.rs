@@ -1,4 +1,9 @@
 /// Tests for all buffer operations.
+///
+/// Many of these are closer to integration
+/// than unit. Frankly, the idea is to test the
+/// PieceFile's API and whether it performs operations
+/// correctly, not to rigidly test its implementation.
 #[cfg(test)]
 
 use super::*;
@@ -117,13 +122,13 @@ fn it_deletes_across_two_pieces() {
     let first_piece = &action.pieces[0];
     assert_eq!(first_piece.file, SourceFile::Append);
     assert_eq!(first_piece.length, 1);
-    assert_eq!(first_piece.file_offset, 5);
+    assert_eq!(first_piece.file_offset, 0);
     assert_eq!(first_piece.logical_offset, 2);
 
     let second_piece = &action.pieces[1];
     assert_eq!(second_piece.file, SourceFile::Append);
     assert_eq!(second_piece.length, 1);
-    assert_eq!(second_piece.file_offset, 1);
+    assert_eq!(second_piece.file_offset, 5);
     assert_eq!(second_piece.logical_offset, 2);
 }
 
@@ -185,7 +190,191 @@ fn it_reads_across_three_pieces() {
     file.insert("bar", 0);
     file.insert("foo", 0);
     file.insert("car", 0);
+
     let read = file.read(9).unwrap();
     assert_eq!(read.as_str(), "carfoobar");
 }
 
+#[test]
+fn it_undoes_an_insert() {
+    let mut file = PieceFile::empty().unwrap();
+    assert_eq!(file.piece_table.len(), 0);
+
+    file.insert("bar", 0);
+    file.undo();
+
+    assert_eq!(file.piece_table.len(), 0);
+}
+
+#[test]
+fn it_undoes_a_delete_in_a_single_piece() {
+    let mut file = PieceFile::empty().unwrap();
+    assert_eq!(file.piece_table.len(), 0);
+
+    file.insert("bar", 0);
+    file.delete(1, 1);
+    file.undo();
+
+    assert_eq!(file.piece_table.len(), 1);
+
+    let read = file.read(3).unwrap();
+    assert_eq!(read.as_str(), "bar");
+}
+
+// It turns out there's a nasty edge case here where
+// deletes will mess up if they're at the beginning
+// or an end of a piece. This is because the undo
+// function expects to be able to insert at a specific
+// index but does not account for the absence of that
+// index.
+
+#[test]
+fn it_undoes_a_delete_at_the_end_of_a_single_piece() {
+    let mut file = PieceFile::empty().unwrap();
+    assert_eq!(file.piece_table.len(), 0);
+
+    file.insert("bar", 0);
+    file.delete(1, 2);
+    file.undo();
+
+    assert_eq!(file.piece_table.len(), 1);
+    assert_eq!(file.piece_table[0].length, 3);
+    assert_eq!(file.length, 3);
+
+    let read = file.read(3).unwrap();
+    assert_eq!(read.as_str(), "bar");
+}
+
+#[test]
+fn it_undoes_a_delete_at_the_start_of_a_single_piece() {
+    let mut file = PieceFile::empty().unwrap();
+    assert_eq!(file.piece_table.len(), 0);
+
+    file.insert("bar", 0);
+    file.delete(0, 2);
+    file.undo();
+
+    assert_eq!(file.piece_table.len(), 1);
+    assert_eq!(file.piece_table[0].length, 3);
+    assert_eq!(file.length, 3);
+
+    let read = file.read(3).unwrap();
+    assert_eq!(read.as_str(), "bar");
+}
+
+#[test]
+fn it_undoes_a_delete_across_two_pieces() {
+    let mut file = PieceFile::empty().unwrap();
+    assert_eq!(file.piece_table.len(), 0);
+
+    file.insert("bar", 0);
+    file.insert("foo", 0);
+    file.delete(0, 6);
+    assert_eq!(file.piece_table.len(), 0);
+    file.undo();
+    assert_eq!(file.piece_table.len(), 2);
+
+    let read = file.read(6).unwrap();
+    assert_eq!(read.as_str(), "foobar");
+}
+
+#[test]
+fn it_undoes_a_delete_across_three_pieces() {
+    let mut file = PieceFile::empty().unwrap();
+    assert_eq!(file.piece_table.len(), 0);
+
+    file.insert("bar", 0);
+    file.insert("foo", 0);
+    file.insert("car", 0);
+    file.delete(0, 9);
+    file.undo();
+
+    assert_eq!(file.piece_table.len(), 3);
+
+    let read = file.read(9).unwrap();
+    assert_eq!(read.as_str(), "carfoobar");
+}
+
+#[test]
+fn it_redoes_an_insert() {
+    let mut file = PieceFile::empty().unwrap();
+    assert_eq!(file.piece_table.len(), 0);
+
+    file.insert("bar", 0);
+    file.undo();
+    assert_eq!(file.piece_table.len(), 0);
+    file.redo();
+    assert_eq!(file.piece_table.len(), 1);
+    let read = file.read(3).unwrap();
+    assert_eq!(read.as_str(), "bar");
+}
+
+#[test]
+fn it_redoes_a_delete() {
+    let mut file = PieceFile::empty().unwrap();
+    assert_eq!(file.piece_table.len(), 0);
+
+    file.insert("foobar", 0);
+    assert_eq!(file.piece_table.len(), 1);
+
+    file.delete(2, 4);
+    assert_eq!(file.piece_table.len(), 1);
+    assert_eq!(file.length, 2);
+
+    file.undo();
+    assert_eq!(file.piece_table.len(), 1);
+    assert_eq!(file.length, 6);
+
+    file.redo();
+    assert_eq!(file.length, 2);
+    assert_eq!(file.piece_table.len(), 1);
+
+    let read = file.read(2).unwrap();
+    assert_eq!(read.as_str(), "fo");
+}
+
+#[test]
+fn it_does_not_panic_after_many_undos() {
+    let mut file = PieceFile::empty().unwrap();
+    assert_eq!(file.piece_table.len(), 0);
+
+    file.insert("foobar", 0);
+    assert_eq!(file.piece_table.len(), 1);
+
+    file.undo();
+    file.undo();
+    file.undo();
+    file.undo();
+    file.undo();
+}
+
+#[test]
+fn it_does_not_panic_after_many_redos() {
+    let mut file = PieceFile::empty().unwrap();
+    assert_eq!(file.piece_table.len(), 0);
+
+    file.insert("foobar", 0);
+    assert_eq!(file.piece_table.len(), 1);
+
+    file.undo();
+    file.redo();
+    file.redo();
+    file.redo();
+    file.redo();
+}
+
+#[test]
+fn it_removes_newer_actions() {
+    let mut file = PieceFile::empty().unwrap();
+    assert_eq!(file.piece_table.len(), 0);
+
+    file.insert("foobar", 0);
+    file.insert("bar", 0);
+    file.undo();
+    file.insert("bar", 0);
+    file.redo();
+
+    let read = file.read(9).unwrap();
+    assert_eq!(read.as_str(), "barfoobar");
+    assert_eq!(file.actions.len(), 2);
+}
