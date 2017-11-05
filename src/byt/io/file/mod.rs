@@ -136,7 +136,12 @@ impl fmt::Display for PieceFile {
         for piece in &self.piece_table {
             write!(f, "{}\n", piece);
         }
-        write!(f, "end piece table")
+        write!(f, "end piece table");
+        write!(f, "actions len({})\n", self.actions.len());
+        for action in &self.actions {
+            write!(f, "{}\n", action);
+        }
+        write!(f, "end actions")
     }
 }
 
@@ -622,7 +627,7 @@ impl PieceFile {
             let piece_offset      = piece.logical_offset;
             let piece_length      = piece.length;
 
-            // Unforunately, the easiest way to do this is to read
+            // Unfortunately, the easiest way to do this is to read
             // from the piece and then insert it like we do below.
             self.read_piece(
                 piece,
