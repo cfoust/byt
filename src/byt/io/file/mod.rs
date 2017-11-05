@@ -150,26 +150,30 @@ impl PieceFile {
                 logical_offset : start_offset,
             });
 
-            action.merge_up   = true;
-            action.merge_down = true;
+            action.merge_up   = upper_size > 0;
+            action.merge_down = lower_size > 0;
 
             self.piece_table.remove(start_index);
 
             // We insert the upper part first
-            self.piece_table.insert(start_index, Piece {
-                file           : piece.file,
-                file_offset    : piece.file_offset + lower_size + delete_size,
-                length         : upper_size,
-                logical_offset : start_offset,
-            });
+            if upper_size > 0 {
+                self.piece_table.insert(start_index, Piece {
+                    file           : piece.file,
+                    file_offset    : piece.file_offset + lower_size + delete_size,
+                    length         : upper_size,
+                    logical_offset : start_offset,
+                });
+            }
 
             // Then the lower part
-            self.piece_table.insert(start_index, Piece {
-                file           : piece.file,
-                file_offset    : piece.file_offset,
-                length         : lower_size,
-                logical_offset : piece.logical_offset,
-            });
+            if lower_size > 0 {
+                self.piece_table.insert(start_index, Piece {
+                    file           : piece.file,
+                    file_offset    : piece.file_offset,
+                    length         : lower_size,
+                    logical_offset : piece.logical_offset,
+                });
+            }
 
             return action;
         }
@@ -567,7 +571,7 @@ impl PieceFile {
     }
 
     /// Redo an undone action.
-    /// 
+    ///
     /// Will do nothing if there is nothing to be redone.
     pub fn redo(&mut self) {
         if self.actions.len() == 0 || self.history_offset == 0 {
@@ -590,7 +594,7 @@ impl PieceFile {
             // Unforunately, the easiest way to do this is to read
             // from the piece and then insert it like we do below.
             self.read_piece(
-                piece, 
+                piece,
                 piece_offset,
                 piece_length,
                 &mut insert_string);
@@ -606,7 +610,7 @@ impl PieceFile {
     /// In the future it might be worthwhile to make this into
     /// a tree like vim does it, but frankly I never use that feature
     /// and don't find it that useful.
-    /// 
+    ///
     /// Will do nothing if there is nothing to be undone.
     pub fn undo(&mut self) {
         if self.actions.len() == 0 {
@@ -623,12 +627,40 @@ impl PieceFile {
         if action.op == Operation::Insert {
             // Inserts are simple. Just remove the piece and merge.
             self.piece_table.remove(index);
+            self.length -= action.length;
         } else {
             // Delete operations should have a list of pieces that
             // they removed.
+
+            // There is an edge case here where the delete completely
+            // removed the last part of a piece. If this happens, we
+            // can't just insert its pieces at the index specified
+            // by the action because that's already the subsequent
+            // piece, not the piece the delete occurred in. As a result
+            // we have to be careful to add the action's Piece _after_
+            // the Piece in `index` and then merge them together.
+            let is_single_end_delete = action.pieces.len() == 1 &&
+                                       !action.merge_up;
+
+            let insert_index = {
+                // Handle edge case where the delete happened at the
+                // end of a single piece
+                if is_single_end_delete {
+                    index + 1
+                } else {
+                    index
+                }
+            };
+
             for piece in action.pieces {
-                self.piece_table.insert(index, piece);
+                self.piece_table.insert(insert_index, piece);
             }
+
+            if is_single_end_delete {
+                self.merge_pieces(index);
+            }
+
+            self.length += action.length;
         }
 
         // We want the piece table to look EXACTLY like it did
