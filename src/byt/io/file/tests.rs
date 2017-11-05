@@ -362,3 +362,19 @@ fn it_does_not_panic_after_many_redos() {
     file.redo();
     file.redo();
 }
+
+#[test]
+fn it_removes_newer_actions() {
+    let mut file = PieceFile::empty().unwrap();
+    assert_eq!(file.piece_table.len(), 0);
+
+    file.insert("foobar", 0);
+    file.insert("bar", 0);
+    file.undo();
+    file.insert("bar", 0);
+    file.redo();
+
+    let read = file.read(9).unwrap();
+    assert_eq!(read.as_str(), "barfoobar");
+    assert_eq!(file.actions.len(), 2);
+}

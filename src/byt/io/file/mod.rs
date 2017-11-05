@@ -45,8 +45,8 @@ struct Piece {
 }
 
 impl Piece {
-    /// Convert a logical offset, which is piece-table global, to an offset inside
-    /// the Piece's file.
+    /// Convert a logical offset, which is piece-table global, to an offset 
+    /// inside the Piece's file.
     pub fn logical_to_file(&self, offset : u64) -> u64 {
         return (offset - self.logical_offset) + self.file_offset;
     }
@@ -430,6 +430,17 @@ impl PieceFile {
         dest.push_str(converted.unwrap());
     }
 
+    /// Remove any edits newer than the current, historical
+    /// version of the file. E.g if the user undoes a few
+    /// changes, remove their corresponding actions so
+    /// they cannot be redone.
+    fn remove_newer_history(&mut self) {
+        while self.history_offset > 0 {
+            self.actions.pop();
+            self.history_offset -= 1;
+        }
+    }
+
     /// Update the logical offsets starting at a certain index.
     fn update_offsets(&mut self, start_index : usize) {
         if self.piece_table.len() == 0 {
@@ -458,6 +469,7 @@ impl PieceFile {
     /// Delete some bytes in the PieceFile.
     pub fn delete(&mut self, offset : u64, length : u64) {
         let action = self._delete(offset, length);
+        self.remove_newer_history();
         self.actions.push(action);
     }
 
@@ -481,6 +493,7 @@ impl PieceFile {
     /// to the insert.
     pub fn insert(&mut self, text : &str, offset : u64) {
         let action = self._insert(text, offset);
+        self.remove_newer_history();
         self.actions.push(action);
     }
 
