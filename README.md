@@ -9,11 +9,11 @@ further.
 
 The editor is very much a work in progress and currently is not even close to being
 functional. The roadmap is as follows:
-- [ ] Create the editor's buffer
+- [X] Create the editor's buffer
   - [X] Implement a piece table
-  - [ ] Allow for undos that properly restore the state of the piece table
+  - [X] Allow for undos and redos that properly restore the state of the piece table
   - [ ] Record timestamps for every edit to allow for exploring the file over
-    time in the future
+    time
 - [ ] Set up the rudiments of the editor itself. Should have no knowledge of rendering, just
       implements functionality over buffers.
 - [ ] Include Lua for editor extensibility.
