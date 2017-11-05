@@ -9,7 +9,6 @@
 use std::fmt;
 use std::fs::File;
 use std::fs::OpenOptions;
-use std::io::Empty;
 use std::io::BufReader;
 use std::io::Read;
 use std::io::Seek;
@@ -54,7 +53,11 @@ impl Piece {
 
 impl fmt::Display for Piece {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        write!(f, "file={:?}[{}] logical_offset={} length={}", self.file, self.file_offset, self.logical_offset, self.length)
+        write!(f, "file={:?}[{}] logical_offset={} length={}",
+               self.file,
+               self.file_offset,
+               self.logical_offset,
+               self.length)
     }
 }
 
@@ -65,6 +68,7 @@ enum Operation {
 }
 
 /// Records a particular modification of the text.
+#[derive(Clone)]
 struct Action {
     /// The operation performed
     op     : Operation,
@@ -90,6 +94,9 @@ pub struct PieceFile {
     /// The in-memory append string. All edits will refer to bytes
     /// stored here.
     append_file : String,
+    /// The number of actions currently undone. Needed so
+    /// we can track `redo`.
+    history_offset : usize,
     /// The total size (in bytes) of the PieceFile.
     length : u64,
     /// The current offset for reads.
@@ -108,7 +115,7 @@ impl PieceFile {
     // #################################
     /// Delete some text. Returns an action that represents
     /// the deletion.
-    pub fn _delete(&mut self, offset : u64, length : u64) -> Action {
+    fn _delete(&mut self, offset : u64, length : u64) -> Action {
         let start_offset = offset;
         let end_offset   = offset + length;
         let start_index  = self.get_at_offset(start_offset);
@@ -167,9 +174,11 @@ impl PieceFile {
             return action;
         }
 
-        // Deletes can affect multiple pieces if the user wants to delete across piece boundaries.
-        // The code below doesn't result in a net positive number of pieces in the piece table.
-        // We do any deletion necessary in a second pass.
+        // Deletes can affect multiple pieces if the user wants
+        // to delete across piece boundaries.The code below
+        // doesn't result in a net positive number of pieces
+        // in the piece table. We do any deletion necessary
+        // in a second pass.
 
         // 1. Handle the piece the delete starts in.
         {
@@ -233,8 +242,6 @@ impl PieceFile {
 
     /// Get a Piece at a particular offset.
     fn get_at_offset(&self, offset : u64) -> usize {
-        let mut logical_length = 0;
-
         // TODO rewrite to be binary search as we have logical
         // offsets now
         for index in 0..self.piece_table.len() {
@@ -248,7 +255,7 @@ impl PieceFile {
             return index;
         }
 
-        if (self.piece_table.len() == 0) {
+        if self.piece_table.len() == 0 {
             return 0;
         }
 
@@ -339,18 +346,18 @@ impl PieceFile {
         action
     }
 
-    /// Reads characters from a piece into a destination string. The `offset` refers to
-    /// logical offset in the whole piece table, not file-specific offset.
+    /// Reads characters from a piece into a destination string.
+    /// The `offset` refers to logical offset in the whole piece
+    /// table, not file-specific offset.
     fn read_piece(&mut self, piece : Piece, offset : u64, num_bytes : u64, dest : &mut String) {
         let piece_start_offset = piece.logical_offset;
-        let piece_end_offset   = piece_start_offset + piece.length - 1;
-        let mut buf = vec![0 as u8; num_bytes as usize];
+        let mut buf            = vec![0 as u8; num_bytes as usize];
 
         match piece.file {
             SourceFile::Append => {
-                let append_start_offset   = piece.logical_to_file(offset);
-                let mut append_end_offset = append_start_offset + num_bytes;
-                let append_bytes          = self.append_file.as_bytes();
+                let append_start_offset = piece.logical_to_file(offset);
+                let append_end_offset   = append_start_offset + num_bytes;
+                let append_bytes        = self.append_file.as_bytes();
 
                 let append_slice = append_bytes
                     .get(append_start_offset as usize ..
@@ -361,16 +368,15 @@ impl PieceFile {
             },
             SourceFile::Original => {
                 let reader = self.reader.as_mut().unwrap();
-                reader.read(buf.as_mut_slice());
+                reader.read(buf.as_mut_slice()).unwrap();
             },
         }
 
-        let slice = buf.as_slice();
         let mut index = buf.len();
         let mut converted = str::from_utf8(&buf[0..index]);
 
-        // It's possible we'll stumble upon a boundary. If we do, reduce the number of
-        // bytes until all is well.
+        // It's possible we'll stumble upon a boundary. If we do,
+        // reduce the number of bytes until all is well.
         while converted.is_err() {
             index -= 1;
             converted = str::from_utf8(&buf[0..index]);
@@ -413,13 +419,14 @@ impl PieceFile {
     /// Create a new empty PieceFile.
     pub fn empty() -> io::Result<PieceFile> {
         let piece_file = PieceFile {
-            actions     : Vec::new(),
-            append_file : String::new(),
-            length      : 0,
-            offset      : 0,
-            path        : String::from(""),
-            piece_table : Vec::new(),
-            reader      : None,
+            actions        : Vec::new(),
+            append_file    : String::new(),
+            history_offset : 0,
+            length         : 0,
+            offset         : 0,
+            path           : String::from(""),
+            piece_table    : Vec::new(),
+            reader         : None,
         };
 
         Ok(piece_file)
@@ -442,13 +449,14 @@ impl PieceFile {
         let size = file.metadata().unwrap().len() as u64;
 
         let mut piece_file = PieceFile {
-            actions     : Vec::new(),
-            append_file : String::new(),
-            length      : size,
-            offset      : 0,
+            actions        : Vec::new(),
+            append_file    : String::new(),
+            history_offset : 0,
+            length         : size,
+            offset         : 0,
             path,
-            piece_table : Vec::new(),
-            reader      : Some(BufReader::new(file)),
+            piece_table    : Vec::new(),
+            reader         : Some(BufReader::new(file)),
         };
 
         piece_file.piece_table.push(Piece {
@@ -461,10 +469,11 @@ impl PieceFile {
         Ok(piece_file)
     }
 
-    /// Read characters from the buffer. The result is guaranteed to contain only
-    /// whole UTF-8 graphemes and have at MOST `num_bytes`.
-    /// If taking the provided number of bytes would result in a panic (i.e if it
-    /// falls on a UTF8 grapheme boundary) then it takes one grapheme fewer.
+    /// Read characters from the buffer. The result is guaranteed to
+    /// contain only whole UTF-8 graphemes and have at MOST `num_bytes`.
+    /// If taking the provided number of bytes would result in a panic
+    /// (i.e if it falls on a UTF8 grapheme boundary) then it takes
+    /// one grapheme fewer.
     pub fn read(&mut self, num_bytes : u64) -> io::Result<Box<String>> {
         let mut result = Box::new(String::new());
 
@@ -506,7 +515,11 @@ impl PieceFile {
                 piece_read_bytes   = piece.length;
                 piece_start_offset = piece.logical_offset;
 
-                self.read_piece(piece, piece_start_offset, piece_read_bytes, &mut result);
+                self.read_piece(
+                    piece,
+                    piece_start_offset,
+                    piece_read_bytes,
+                    &mut result);
             }
         }
 
@@ -520,7 +533,11 @@ impl PieceFile {
             let piece_read_bytes   = end_offset - piece.logical_offset + 1;
             let piece_start_offset = piece.logical_offset;
 
-            self.read_piece(piece, piece_start_offset, piece_read_bytes, &mut result);
+            self.read_piece(
+                piece,
+                piece_start_offset,
+                piece_read_bytes,
+                &mut result);
         }
 
         Ok(result)
@@ -538,7 +555,7 @@ impl PieceFile {
             let lower_end_offset   = lower_piece.file_offset + lower_piece.length;
 
             // Something is amiss. Don't merge noncontiguous pieces.
-            if (lower_end_offset != upper_start_offset) {
+            if lower_end_offset != upper_start_offset {
                 panic!("Attempting to merge noncontiguous pieces!");
             }
 
@@ -549,19 +566,59 @@ impl PieceFile {
         self.update_offsets(index);
     }
 
+    /// Redo an undone action.
+    /// 
+    /// Will do nothing if there is nothing to be redone.
+    pub fn redo(&mut self) {
+        if self.actions.len() == 0 || self.history_offset == 0 {
+            return;
+        }
+
+        let action_index = self.actions.len() - self.history_offset;
+        let action       = self.actions[action_index].clone();
+        let index        = self.get_at_offset(action.offset);
+        let last_index   = index + action.pieces.len() - 1;
+
+        self.history_offset -= 1;
+
+        if action.op == Operation::Insert {
+            let mut insert_string = String::new();
+            let piece             = action.pieces[0].clone();
+            let piece_offset      = piece.logical_offset;
+            let piece_length      = piece.length;
+
+            // Unforunately, the easiest way to do this is to read
+            // from the piece and then insert it like we do below.
+            self.read_piece(
+                piece, 
+                piece_offset,
+                piece_length,
+                &mut insert_string);
+
+            self._insert(insert_string.as_str(), action.offset);
+        } else {
+            self._delete(action.offset, action.length);
+        }
+    }
+
     /// Undo the most recent change to the buffer.
     ///
     /// In the future it might be worthwhile to make this into
     /// a tree like vim does it, but frankly I never use that feature
     /// and don't find it that useful.
+    /// 
+    /// Will do nothing if there is nothing to be undone.
     pub fn undo(&mut self) {
         if self.actions.len() == 0 {
             return;
         }
 
-        let action     = self.actions.pop().unwrap();
-        let index      = self.get_at_offset(action.offset);
-        let last_index = index + action.pieces.len() - 1;
+        let action_index = self.actions.len() - 1 - self.history_offset;
+        let action       = self.actions[action_index].clone();
+        let index        = self.get_at_offset(action.offset);
+        let last_index   = index + action.pieces.len() - 1;
+
+        self.history_offset += 1;
 
         if action.op == Operation::Insert {
             // Inserts are simple. Just remove the piece and merge.

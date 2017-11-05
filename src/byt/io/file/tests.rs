@@ -1,4 +1,9 @@
 /// Tests for all buffer operations.
+/// 
+/// Many of these are closer to integration
+/// than unit. Frankly, the idea is to test the
+/// PieceFile's API and whether it performs operations
+/// correctly, not to rigidly test its implementation.
 #[cfg(test)]
 
 use super::*;
