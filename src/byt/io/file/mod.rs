@@ -15,6 +15,7 @@ use std::io::Seek;
 use std::io::SeekFrom;
 use std::io;
 use std::str;
+use std::time;
 
 // SUBMODULES
 mod tests;
@@ -83,6 +84,8 @@ struct Action {
     /// merged downwards or upwards when the action is undone.
     merge_down : bool,
     merge_up   : bool,
+    /// The instant this Action was initialized.
+    timestamp : time::Instant,
 }
 
 impl fmt::Display for Action {
@@ -166,6 +169,7 @@ impl PieceFile {
             pieces     : Vec::new(),
             merge_down : false,
             merge_up   : false,
+            timestamp  : time::Instant::now(),
         };
 
         // TODO: ensure we don't overflow
@@ -329,6 +333,7 @@ impl PieceFile {
             // above or below it.
             merge_down : false,
             merge_up   : false,
+            timestamp  : time::Instant::now(),
         };
 
         action.pieces.push(piece.clone());
