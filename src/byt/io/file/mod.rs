@@ -159,7 +159,6 @@ impl PieceFile {
         let end_offset   = offset + length;
         let start_index  = self.get_at_offset(start_offset);
         let end_index    = self.get_at_offset(end_offset);
-        let delete_size  = ((end_index - start_index) as u64) + 1;
         let num_pieces   = (end_index - start_index) + 1;
 
         let mut action = Action {
@@ -308,7 +307,7 @@ impl PieceFile {
 
     /// Insert some text. Returns the action corresponding
     /// to the insert.
-    pub fn _insert(&mut self, text : &str, offset : u64) -> Action {
+    fn _insert(&mut self, text : &str, offset : u64) -> Action {
         let length = text.len() as u64;
         let append_offset = self.append_file.len() as u64;
 
@@ -395,7 +394,6 @@ impl PieceFile {
     /// The `offset` refers to logical offset in the whole piece
     /// table, not file-specific offset.
     fn read_piece(&mut self, piece : Piece, offset : u64, num_bytes : u64, dest : &mut String) {
-        let piece_start_offset = piece.logical_offset;
         let mut buf            = vec![0 as u8; num_bytes as usize];
 
         match piece.file {
@@ -635,7 +633,6 @@ impl PieceFile {
         let action_index = self.actions.len() - self.history_offset;
         let action       = self.actions[action_index].clone();
         let index        = self.get_at_offset(action.offset);
-        let last_index   = index + action.pieces.len() - 1;
 
         self.history_offset -= 1;
 
