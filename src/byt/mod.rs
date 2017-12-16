@@ -9,9 +9,7 @@
 // EXTERNS
 
 // LIBRARY INCLUDES
-use std::env;
 use std::io::{Write, stdout, stdin};
-use std::process;
 use termion::cursor::Goto;
 use termion::event::Key;
 use termion::input::TermRead;
@@ -29,6 +27,9 @@ pub fn init() {
     let stdin = stdin();
     let mut stdout = stdout().into_raw_mode().unwrap();
     let mut screen = AlternateScreen::from(stdout);
+
+    let mut table = io::binds::BindingTable::new();
+    table.add_action(Key::Char('q'), String::from("fuck"));
 
     // Get the size of the terminal window.
     let (rows, cols) = termion::terminal_size().unwrap();

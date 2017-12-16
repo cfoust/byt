@@ -45,7 +45,7 @@ struct Piece {
 }
 
 impl Piece {
-    /// Convert a logical offset, which is piece-table global, to an offset 
+    /// Convert a logical offset, which is piece-table global, to an offset
     /// inside the Piece's file.
     pub fn logical_to_file(&self, offset : u64) -> u64 {
         return (offset - self.logical_offset) + self.file_offset;
