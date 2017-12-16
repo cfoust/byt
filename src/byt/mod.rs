@@ -10,20 +10,19 @@
 
 // LIBRARY INCLUDES
 use std::env;
+use std::io::{Write, stdout, stdin};
 use std::process;
-use termion;
-use termion::screen::AlternateScreen;
 use termion::cursor::Goto;
-use termion::raw::IntoRawMode;
 use termion::event::Key;
 use termion::input::TermRead;
-use std::io::{Write, stdout, stdin};
+use termion::raw::IntoRawMode;
+use termion::screen::AlternateScreen;
+use termion;
 
 // SUBMODULES
 mod io;
 
 // LOCAL INCLUDES
-use byt::io::file::PieceFile;
 
 /// Initialize and start byt.
 pub fn init() {
@@ -33,17 +32,16 @@ pub fn init() {
 
     // Get the size of the terminal window.
     let (rows, cols) = termion::terminal_size().unwrap();
-    write!(screen, "{}", termion::cursor::Goto(rows / 2, cols / 2));
 
-    //// For now we just move to the center
-    
+    // For now we just move to the center
+    write!(screen, "{}", Goto(rows / 2, cols / 2));
     write!(screen, "BYT");
     screen.flush().unwrap();
 
     for c in stdin.keys() {
         write!(screen,
                "{}{}",
-               termion::cursor::Goto(1, 1),
+               Goto(1, 1),
                termion::clear::CurrentLine)
             .unwrap();
 
