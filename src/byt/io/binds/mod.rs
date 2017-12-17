@@ -8,6 +8,7 @@
 use termion::event::Key;
 
 // SUBMODULES
+mod tests;
 
 // LOCAL INCLUDES
 
@@ -43,6 +44,21 @@ pub struct BindingTable<'a> {
 }
 
 impl<'a> BindingTable<'a> {
+    // #################################
+    // P R I V A T E  F U N C T I O N S
+    // #################################
+    /// Make sure that a binding does not conflict with other bindings
+    /// in the table.
+    fn ensure_unique(&self, key : Key) {
+        for binding in self.bindings.iter() {
+            if key != binding.key {
+                continue;
+            }
+
+            panic!("Binding already exists for key");
+        }
+    }
+    
     // ###############################
     // P U B L I C  F U N C T I O N S
     // ###############################
@@ -57,8 +73,7 @@ impl<'a> BindingTable<'a> {
 
     /// Add a binding that runs an action.
     pub fn add_action(&mut self, key : Key, action : String) {
-        // Note: in the future it might be good to ensure that only
-        // one binding exists for a given key in the table.
+        self.ensure_unique(key);
         self.bindings.push(Binding {
             key    : key.clone(),
             result : Next::Action(action)
@@ -67,6 +82,7 @@ impl<'a> BindingTable<'a> {
 
     /// Link a binding that leads to another table.
     pub fn add_table(&mut self, key : Key, table : &'a BindingTable<'a>) {
+        self.ensure_unique(key);
         self.bindings.push(Binding {
             key    : key.clone(),
             result : Next::Table(table)
