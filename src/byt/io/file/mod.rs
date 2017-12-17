@@ -632,7 +632,6 @@ impl PieceFile {
 
         let action_index = self.actions.len() - self.history_offset;
         let action       = self.actions[action_index].clone();
-        let index        = self.get_at_offset(action.offset);
 
         self.history_offset -= 1;
 

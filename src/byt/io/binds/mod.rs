@@ -13,6 +13,7 @@ use termion::event::Key;
 
 /// Stores a reference to the action identifier or the
 /// next binding table.
+#[derive(Clone)]
 pub enum Next<'b> {
     /// The string referring to a method e.g `next-line`.
     Action(String),
@@ -49,7 +50,8 @@ impl<'a> BindingTable<'a> {
     /// Make a new BindingTable without anything in it.
     pub fn new() -> BindingTable<'a> {
         BindingTable {
-            bindings : Vec::new()
+            bindings : Vec::new(),
+            wildcard : Next::Noop
         }
     }
 
@@ -76,11 +78,33 @@ impl<'a> BindingTable<'a> {
 pub struct BindHandler<'b> {
     current_table : &'b BindingTable<'b>,
     root_table    : &'b BindingTable<'b>,
-    next_action   : &'b str,
+    next_action   : String,
     has_action    : bool,
 }
 
 impl<'a> BindHandler<'a> {
+    // #################################
+    // P R I V A T E  F U N C T I O N S
+    // #################################
+
+    /// Interpret the result of a Next enum.
+    fn handleNext(&mut self, next : &Next<'a>) {
+        match *next {
+            Next::Action(ref action) => {
+                self.next_action = action.clone();
+                self.has_action  = true;
+            },
+            Next::Table(table) => {
+                self.current_table = table;
+            },
+            Next::Root => {
+                self.current_table = self.root_table;
+            }
+            Next::Noop => {
+            }
+        }
+    }
+
     // ###############################
     // P U B L I C  F U N C T I O N S
     // ###############################
@@ -89,35 +113,35 @@ impl<'a> BindHandler<'a> {
         BindHandler {
             current_table : table,
             root_table    : table,
-            next_action   : "",
+            next_action   : String::new(),
             has_action    : false
         }
     }
 
     /// Handle a key of new user input.
     pub fn consume(&mut self, key : Key) {
+        let mut next = &self.current_table.wildcard;
+
         for binding in self.current_table.bindings.iter() {
             if key != binding.key {
                 continue;
             }
 
-            match binding.result {
-                Next::Action(ref action) => {
-                    self.next_action = action.as_str();
-                    self.has_action  = true;
-                    return;
-                },
-                Next::Table(table) => {
-                    self.current_table = table;
-                    return;
-                },
-                Next::Root => {
-                    self.current_table = self.root_table;
-                    return;
-                }
-            }
+            next = &binding.result;
+            break;
         }
+
+        self.handleNext(next);
     }
 
-    /// Check whether an action can be consumed.
+    /// Check whether there's an action that can be consumed.
+    pub fn has_action(&self) -> bool {
+        self.has_action
+    }
+
+    /// Get the action waiting to be taken.
+    pub fn pop_action(&mut self) -> String {
+        self.has_action = false;
+        return self.next_action.clone();
+    }
 }
