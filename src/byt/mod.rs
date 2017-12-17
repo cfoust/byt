@@ -29,7 +29,11 @@ pub fn init() {
     let mut screen = AlternateScreen::from(stdout);
 
     let mut table = io::binds::BindingTable::new();
-    table.add_action(Key::Char('q'), String::from("fuck"));
+    table.add_action(Key::Char('a'), String::from("foo"));
+    table.add_action(Key::Char('s'), String::from("bar"));
+    table.add_action(Key::Char('d'), String::from("foobar"));
+
+    let mut handler = io::binds::BindHandler::new(&table);
 
     // Get the size of the terminal window.
     let (rows, cols) = termion::terminal_size().unwrap();
@@ -46,17 +50,17 @@ pub fn init() {
                termion::clear::CurrentLine)
             .unwrap();
 
-        match c.unwrap() {
+        let key = c.unwrap();
+
+        handler.consume(key);
+
+        if handler.has_action() {
+            let action = handler.pop_action();
+            write!(screen, "{}", action);
+        }
+
+        match key {
             Key::Char('q') => break,
-            Key::Char(c) => println!("{}", c),
-            Key::Alt(c) => println!("^{}", c),
-            Key::Ctrl(c) => println!("*{}", c),
-            Key::Esc => println!("ESC"),
-            Key::Left => println!("←"),
-            Key::Right => println!("→"),
-            Key::Up => println!("↑"),
-            Key::Down => println!("↓"),
-            Key::Backspace => println!("×"),
             _ => {}
         }
         screen.flush().unwrap();
