@@ -36,7 +36,7 @@ pub struct Binding {
 /// A table of bindings.
 pub struct BindingTable {
     bindings : Vec<Binding>,
-    /// Describes what happens when a key matches nothing in the list 
+    /// Describes what happens when a key matches nothing in the list
     /// of bindings.  If `wildcard` is an Action, it is invoked with
     /// the key.
     wildcard : Next
@@ -57,7 +57,7 @@ impl BindingTable {
             panic!("Binding already exists for key");
         }
     }
-    
+
     // ###############################
     // P U B L I C  F U N C T I O N S
     // ###############################
@@ -99,10 +99,13 @@ impl Keymaster {
     fn handleNext(&mut self, next : Next) {
         match next {
             Next::Action(ref action) => {
+                // TODO: send an action
             },
             Next::Pop => {
+                self.pop_table();
             },
             Next::Insert => {
+                // TODO: attempt to insert a character into the current pane
             },
             Next::Nothing => {
             }
@@ -150,7 +153,10 @@ impl Keymaster {
                 continue;
             }
 
-            break;
+            self.handleNext(binding.result);
+            return;
         }
+
+        self.handleNext(table.wildcard);
     }
 }
