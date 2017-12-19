@@ -1,7 +1,6 @@
 //! byt - io
 //!
 //! Structs and methods for the purpose of handling user input.
-
 // EXTERNS
 
 // LIBRARY INCLUDES
@@ -15,35 +14,35 @@ mod tests;
 /// Stores a reference to the action identifier or the
 /// next binding table.
 #[derive(Clone)]
-pub enum Next<'b> {
+pub enum Next {
     /// The string referring to a method e.g `next-line`.
     Action(String),
-    /// A reference to another table.
-    Table(&'b BindingTable<'b>),
-    /// Go back to the root table.
-    Root,
+    /// A special action for inserting whatever key was typed.
+    Insert,
+    /// Pop a table of bindings off of the stack.
+    Pop,
     /// Stay in the current table and do nothing.
-    Noop
+    Nothing
 }
 
 /// The association of a key to some action.
-pub struct Binding<'a> {
+pub struct Binding {
     // The key that will yield the result.
     key    : Key,
     // Either an action or a table of new bindings.
-    result : Next<'a>,
+    result : Next,
 }
 
 /// A table of bindings.
-pub struct BindingTable<'a> {
-    bindings : Vec<Binding<'a>>,
+pub struct BindingTable {
+    bindings : Vec<Binding>,
     /// Describes what happens when a key matches nothing in the list 
     /// of bindings.  If `wildcard` is an Action, it is invoked with
     /// the key.
-    wildcard : Next<'a>
+    wildcard : Next
 }
 
-impl<'a> BindingTable<'a> {
+impl BindingTable {
     // #################################
     // P R I V A T E  F U N C T I O N S
     // #################################
@@ -64,59 +63,40 @@ impl<'a> BindingTable<'a> {
     // ###############################
 
     /// Make a new BindingTable without anything in it.
-    pub fn new() -> BindingTable<'a> {
+    pub fn new() -> BindingTable {
         BindingTable {
             bindings : Vec::new(),
-            wildcard : Next::Noop
+            wildcard : Next::Nothing
         }
     }
 
-    /// Add a binding that runs an action.
-    pub fn add_action(&mut self, key : Key, action : String) {
-        self.ensure_unique(key);
-        self.bindings.push(Binding {
-            key    : key.clone(),
-            result : Next::Action(action)
-        });
-    }
-
-    /// Link a binding that leads to another table.
-    pub fn add_table(&mut self, key : Key, table : &'a BindingTable<'a>) {
-        self.ensure_unique(key);
-        self.bindings.push(Binding {
-            key    : key.clone(),
-            result : Next::Table(table)
-        });
+    /// Add a binding to the table.
+    pub fn add_binding(&mut self, binding : Binding) {
+        self.ensure_unique(binding.key);
+        self.bindings.push(binding);
     }
 }
 
 /// Takes in keys and returns actions or tables.
-pub struct BindHandler<'b> {
-    current_table : &'b BindingTable<'b>,
-    root_table    : &'b BindingTable<'b>,
-    next_action   : String,
-    has_action    : bool,
+pub struct Keymaster {
+    tables : Vec<BindingTable>
 }
 
-impl<'a> BindHandler<'a> {
+impl Keymaster {
     // #################################
     // P R I V A T E  F U N C T I O N S
     // #################################
 
     /// Interpret the result of a Next enum.
-    fn handleNext(&mut self, next : &Next<'a>) {
-        match *next {
+    fn handleNext(&mut self, next : Next) {
+        match next {
             Next::Action(ref action) => {
-                self.next_action = action.clone();
-                self.has_action  = true;
             },
-            Next::Table(table) => {
-                self.current_table = table;
+            Next::Pop => {
             },
-            Next::Root => {
-                self.current_table = self.root_table;
-            }
-            Next::Noop => {
+            Next::Insert => {
+            },
+            Next::Nothing => {
             }
         }
     }
@@ -125,39 +105,25 @@ impl<'a> BindHandler<'a> {
     // P U B L I C  F U N C T I O N S
     // ###############################
 
-    pub fn new(table : &'a BindingTable<'a>) -> BindHandler<'a> {
-        BindHandler {
-            current_table : table,
-            root_table    : table,
-            next_action   : String::new(),
-            has_action    : false
+    pub fn new() -> Keymaster {
+        Keymaster {
+            tables : Vec::new()
         }
     }
 
     /// Handle a key of new user input.
     pub fn consume(&mut self, key : Key) {
-        let mut next = &self.current_table.wildcard;
+        //let mut next = &self.current_table.wildcard;
 
-        for binding in self.current_table.bindings.iter() {
-            if key != binding.key {
-                continue;
-            }
+        //for binding in self.current_table.bindings.iter() {
+            //if key != binding.key {
+                //continue;
+            //}
 
-            next = &binding.result;
-            break;
-        }
+            //next = &binding.result;
+            //break;
+        //}
 
-        self.handleNext(next);
-    }
-
-    /// Check whether there's an action that can be consumed.
-    pub fn has_action(&self) -> bool {
-        self.has_action
-    }
-
-    /// Get the action waiting to be taken.
-    pub fn pop_action(&mut self) -> String {
-        self.has_action = false;
-        return self.next_action.clone();
+        //self.handleNext(next);
     }
 }

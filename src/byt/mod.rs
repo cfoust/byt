@@ -18,6 +18,7 @@ use termion::screen::AlternateScreen;
 use termion;
 
 // SUBMODULES
+mod events;
 mod io;
 
 // LOCAL INCLUDES
@@ -27,13 +28,6 @@ pub fn init() {
     let stdin = stdin();
     let mut stdout = stdout().into_raw_mode().unwrap();
     let mut screen = AlternateScreen::from(stdout);
-
-    let mut table = io::binds::BindingTable::new();
-    table.add_action(Key::Char('a'), String::from("foo"));
-    table.add_action(Key::Char('s'), String::from("bar"));
-    table.add_action(Key::Char('d'), String::from("foobar"));
-
-    let mut handler = io::binds::BindHandler::new(&table);
 
     // Get the size of the terminal window.
     let (rows, cols) = termion::terminal_size().unwrap();
@@ -52,17 +46,11 @@ pub fn init() {
 
         let key = c.unwrap();
 
-        handler.consume(key);
-
-        if handler.has_action() {
-            let action = handler.pop_action();
-            write!(screen, "{}", action);
-        }
-
         match key {
             Key::Char('q') => break,
             _ => {}
         }
+
         screen.flush().unwrap();
     }
 }
