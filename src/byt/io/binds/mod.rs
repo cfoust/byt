@@ -14,9 +14,9 @@ mod tests;
 /// Stores a reference to the action identifier or the
 /// next binding table.
 #[derive(Clone)]
-pub enum Next {
+pub enum Action {
     /// The string referring to a method e.g `next-line`.
-    Action(String),
+    Function(String),
     /// A special action for inserting whatever key was typed.
     Insert,
     /// Pop a table of bindings off of the stack.
@@ -30,7 +30,7 @@ pub struct Binding {
     // The key that will yield the result.
     key    : Key,
     // Either an action or a table of new bindings.
-    result : Next,
+    result : Action,
 }
 
 /// A table of bindings.
@@ -39,7 +39,7 @@ pub struct BindingTable {
     /// Describes what happens when a key matches nothing in the list
     /// of bindings.  If `wildcard` is an Action, it is invoked with
     /// the key.
-    wildcard : Next
+    wildcard : Action
 }
 
 impl BindingTable {
@@ -66,7 +66,7 @@ impl BindingTable {
     pub fn new() -> BindingTable {
         BindingTable {
             bindings : Vec::new(),
-            wildcard : Next::Nothing
+            wildcard : Action::Nothing
         }
     }
 
@@ -77,8 +77,27 @@ impl BindingTable {
     }
 
     /// Set the wildcard action.
-    pub fn set_wildcard(&mut self, action : Next) {
+    pub fn set_wildcard(&mut self, action : Action) {
         self.wildcard = action;
+    }
+
+    /// Look through the table for any entries that match
+    /// the given key or the wildcard otherwise. Return
+    /// that key's action if so.
+    pub fn get_action(&self, key : Key) -> Option<&Action> {
+        let entry = self.bindings
+            .iter()
+            .find(|ref x| x.key == key);
+
+        if entry.is_none() {
+            if let Action::Nothing = self.wildcard {
+                return None
+            }
+
+            return Some(&self.wildcard);
+        }
+
+        Some(&entry.unwrap().result)
     }
 }
 
@@ -91,23 +110,41 @@ impl Keymaster {
     // #################################
     // P R I V A T E  F U N C T I O N S
     // #################################
+    /// Pop a table from the table stack.
     fn pop_table(&mut self) {
         self.tables.pop();
     }
 
-    /// Interpret the result of a Next enum.
-    fn handleNext(&mut self, next : Next) {
-        match next {
-            Next::Action(ref action) => {
+    /// Search through the tables in the Keymaster for a binding
+    /// that matches a key. 
+    fn search_key(&mut self, key : Key) -> Option<&Action> {
+        let mut action : Option<&Action> = Option::None;
+
+        // Start from the top of the stack and go down.
+        for table in self.tables.iter().rev() {
+            action = table.get_action(key);
+
+            if action.is_some() {
+                break
+            }
+        }
+
+        action
+    }
+
+    /// Interpret the result of a Action enum.
+    fn handle_action(&mut self, next : &Action) {
+        match *next {
+            Action::Function(ref action) => {
                 // TODO: send an action
             },
-            Next::Pop => {
+            Action::Pop => {
                 self.pop_table();
             },
-            Next::Insert => {
+            Action::Insert => {
                 // TODO: attempt to insert a character into the current pane
             },
-            Next::Nothing => {
+            Action::Nothing => {
             }
         }
     }
@@ -128,7 +165,7 @@ impl Keymaster {
         self.tables.push(table);
     }
 
-    /// Get a reference to the table on the top of the stack.
+    /// Get a mutable reference to the table on the top of the stack.
     pub fn peek_table(&self) -> Option<&BindingTable> {
         if self.tables.len() == 0 {
             return None
@@ -142,21 +179,26 @@ impl Keymaster {
             .unwrap())
     }
 
-    /// Handle a key of new user input.
-    pub fn consume(&mut self, key : Key) {
-        // If there are no tables we are in severe trouble anyway.
-        // Let this panic.
-        let table = self.peek_table().unwrap();
+    /// Handle a key of new user input. Returns true if the key
+    /// got swallowed by any of this Keymaster's tables, otherwise
+    /// return false.
+    /// This will only return false if ALL wildcards in the tables
+    /// are Action::Nothing. This can happen in panes that want
+    /// to respect global bindings.
+    pub fn consume(&mut self, key : Key) -> bool {
+        let mut action : Action = Action::Nothing;
 
-        for binding in table.bindings.iter() {
-            if key != binding.key {
-                continue;
+        {
+            let result = self.search_key(key);
+
+            if result.is_none() {
+                return false;
             }
 
-            self.handleNext(binding.result);
-            return;
+            action = result.unwrap().clone();
         }
 
-        self.handleNext(table.wildcard);
+        self.handle_action(&action);
+        return true;
     }
 }
