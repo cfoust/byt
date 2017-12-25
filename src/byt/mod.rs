@@ -7,66 +7,95 @@
 //! automated tests just by piping in a file.
 
 // EXTERNS
-extern crate libc;
 
 // LIBRARY INCLUDES
-use std::io::Read;
-use std::io::stdin;
-use std::env;
-use std::process;
+use std::io::{Write, stdout, stdin};
+use std::sync::mpsc::channel;
+use std::thread;
+use termion::cursor::Goto;
+use termion::event::Key;
+use termion::input::TermRead;
+use termion::raw::IntoRawMode;
+use termion::screen::AlternateScreen;
+use termion;
 
 // SUBMODULES
-mod render;
-mod envs;
+mod events;
 mod io;
 
 // LOCAL INCLUDES
-use byt::render::Renderer;
-use byt::render::terminal;
-use byt::envs::TermMode;
-use byt::envs::os_unix::Term;
-use byt::io::file::PieceFile;
+use self::events::*;
 
 /// Initialize and start byt.
 pub fn init() {
-    // Struct with methods for manipulating the terminal.
-    let term = Term::new();
-    // Set the terminal to raw mode on startup
-    term.start();
-    term.set_mode(TermMode::Raw);
+    let mut stdout = stdout().into_raw_mode().unwrap();
+    let mut screen = AlternateScreen::from(stdout);
 
-    let mut target = terminal::TermRenderer::new();
+    // Make some kind of title screen.
+    {
+        // Get the size of the terminal window.
+        let (rows, cols) = termion::terminal_size().unwrap();
 
-    // Get the size of the terminal window.
-    let size = target.size();
+        // For now we just move to the center
+        write!(screen, "{}", Goto(rows / 2, cols / 2));
+        write!(screen, "BYT");
 
-    // For now we just move to the center
-    target.move_cursor(size.row / 2, size.col / 2);
-    target.write("BYT");
+        screen.flush().unwrap();
+    }
 
-    // For now, just make a buffer from the first file
-    // supplied as an argument.
-    let buffer = match env::args().nth(1) {
-        // TODO: better error handling here
-        Some(x) => match PieceFile::open(x.clone()) {
-                Ok(v) => v,
-                Err(_) => PieceFile::open(x).unwrap(),
-        },
-        None => PieceFile::open(String::from("Unnamed")).unwrap(),
-    };
+    let (sender, receiver) = channel::<Event>();
 
-    // Read one byte at a time.
-    let mut byte = [0u8];
+    let mut key_handler = io::binds::Keymaster::new();
+
+    {
+        let mut table = io::binds::BindingTable::new();
+
+        table.add_binding(io::binds::Binding::new(
+                Key::Char('q'), 
+                io::binds::Action::Function(String::from("quit")),
+                ));
+
+        table.add_binding(io::binds::Binding::new(
+                Key::Char('a'), 
+                io::binds::Action::Function(String::from("test")),
+                ));
+
+        key_handler.add_table(table);
+    }
+
+    // One thread just reads from user input and makes
+    // events from whatever it gets.
+    let key_sender = sender.clone();
+    thread::spawn(move|| {
+        let stdin = stdin();
+
+        for c in stdin.keys() {
+            let key = c.unwrap();
+            key_sender.send(Event::KeyPress(key)).unwrap();
+        }
+    });
+
     loop {
-        stdin().read_exact(&mut byte)
-            .expect("Failed to read byte from stdin");
-        let code = byte[0];
+        let event = receiver.recv().unwrap();
+        let sender = sender.clone();
 
-        print!("{}\n", byte[0]);
-        if code == 113 {
-            term.stop();
-            term.set_mode(TermMode::Cooked);
-            process::exit(0);
+        if let Event::KeyPress(key) = event {
+            let result = key_handler.consume(key);
+
+            if result.is_none() {
+                continue;
+            }
+
+            sender.send(Event::Function(result.unwrap()));
+        }
+
+        if let Event::Function(name) = event {
+            if name == "quit" {
+                break;
+            }
+
+            write!(screen, "{}", name.as_str());
+            screen.flush().unwrap();
         }
     }
 }
