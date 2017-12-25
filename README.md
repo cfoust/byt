@@ -12,15 +12,17 @@ functional. The roadmap is as follows:
 - [X] Create the editor's buffer
   - [X] Implement a piece table
   - [X] Allow for undos and redos that properly restore the state of the piece table
-  - [ ] Record timestamps for every edit to allow for exploring the file over
-    time
-- [ ] Set up the rudiments of the editor itself. Should have no knowledge of rendering, just
-      implements functionality over buffers.
+  - [X] Record timestamps for every edit
+  - [ ] Allow for exploring edits over time
+- [X] Establish a system of interpreting key presses. Want this to be as robust
+  as possible, allowing for an arbitrary number of modes and keybindings.
+  Default to basic vim-esque bindings.
+- [ ] Create a View struct for the purpose of abstracting over rendering and
+  keybinding intepretation
+- [ ] Build the basic terminal renderer. In the future, we could render to a
+  standalone window of some sort.
+- [ ] Implement `vym`, byt's vim emulation mode. Most movement and insertion
+  bindings will be supported out of the box.
 - [ ] Include Lua for editor extensibility.
-- [ ] Establish a system of interpreting key presses. Want this to be as robust as possible,
-      allowing for an arbitrary number of modes and keybindings. Default to basic vim-esque
-      bindings.
-- [ ] Build the basic terminal renderer. In the future, we could render to a standalone
-      window of some sort.
-- [ ] As the user works with byt, optionally collect usage information that can suggest
-      more efficient keybindings.
+- [ ] As the user works with byt, optionally collect usage information that can
+  suggest more efficient keybindings.
