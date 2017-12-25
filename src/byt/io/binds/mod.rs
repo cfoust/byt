@@ -16,9 +16,8 @@ mod tests;
 #[derive(Clone)]
 pub enum Action {
     /// The string referring to a method e.g `next-line`.
+    /// The function will be given the key that was pressed.
     Function(String),
-    /// A special action for inserting whatever key was typed.
-    Insert,
     /// Pop a table of bindings off of the stack.
     Pop,
     /// Stay in the current table and do nothing.
@@ -84,7 +83,7 @@ impl BindingTable {
     /// Look through the table for any entries that match
     /// the given key or the wildcard otherwise. Return
     /// that key's action if so.
-    pub fn get_action(&self, key : Key) -> Option<&Action> {
+    pub fn search_key(&self, key : Key) -> Option<&Action> {
         let entry = self.bindings
             .iter()
             .find(|ref x| x.key == key);
@@ -122,7 +121,7 @@ impl Keymaster {
 
         // Start from the top of the stack and go down.
         for table in self.tables.iter().rev() {
-            action = table.get_action(key);
+            action = table.search_key(key);
 
             if action.is_some() {
                 break
@@ -136,16 +135,12 @@ impl Keymaster {
     fn handle_action(&mut self, next : &Action) {
         match *next {
             Action::Function(ref action) => {
-                // TODO: send an action
+                // TODO: send an event to be consumed
             },
             Action::Pop => {
                 self.pop_table();
             },
-            Action::Insert => {
-                // TODO: attempt to insert a character into the current pane
-            },
-            Action::Nothing => {
-            }
+            Action::Nothing => {}
         }
     }
 
