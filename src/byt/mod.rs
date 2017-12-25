@@ -10,6 +10,8 @@
 
 // LIBRARY INCLUDES
 use std::io::{Write, stdout, stdin};
+use std::sync::mpsc::channel;
+use std::thread;
 use termion::cursor::Goto;
 use termion::event::Key;
 use termion::input::TermRead;
@@ -25,32 +27,42 @@ mod io;
 
 /// Initialize and start byt.
 pub fn init() {
-    let stdin = stdin();
     let mut stdout = stdout().into_raw_mode().unwrap();
     let mut screen = AlternateScreen::from(stdout);
 
-    // Get the size of the terminal window.
-    let (rows, cols) = termion::terminal_size().unwrap();
+    // Make some kind of title screen.
+    {
+        // Get the size of the terminal window.
+        let (rows, cols) = termion::terminal_size().unwrap();
 
-    // For now we just move to the center
-    write!(screen, "{}", Goto(rows / 2, cols / 2));
-    write!(screen, "BYT");
-    screen.flush().unwrap();
-
-    for c in stdin.keys() {
-        write!(screen,
-               "{}{}",
-               Goto(1, 1),
-               termion::clear::CurrentLine)
-            .unwrap();
-
-        let key = c.unwrap();
-
-        match key {
-            Key::Char('q') => break,
-            _ => {}
-        }
+        // For now we just move to the center
+        write!(screen, "{}", Goto(rows / 2, cols / 2));
+        write!(screen, "BYT");
 
         screen.flush().unwrap();
+    }
+
+    let (sender, receiver) = channel::<events::Event>();
+
+    // One thread just reads from user input and makes
+    // events from whatever it gets.
+    thread::spawn(move|| {
+        let stdin = stdin();
+
+        for c in stdin.keys() {
+            let key = c.unwrap();
+            sender.send(events::Event::KeyPress(key));
+        }
+    });
+
+    loop {
+        let event = receiver.recv().unwrap();
+
+        if let events::Event::KeyPress(key) = event {
+            match key {
+                Key::Char('q') => break,
+                _ => {}
+            }
+        }
     }
 }
