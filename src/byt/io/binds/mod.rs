@@ -32,6 +32,15 @@ pub struct Binding {
     result : Action,
 }
 
+impl Binding {
+    pub fn new(key : Key, result : Action) -> Binding {
+        Binding {
+            key,
+            result
+        }
+    }
+}
+
 /// A table of bindings.
 pub struct BindingTable {
     bindings : Vec<Binding>,
@@ -131,17 +140,21 @@ impl Keymaster {
         action
     }
 
-    /// Interpret the result of a Action enum.
-    fn handle_action(&mut self, next : &Action) {
+    /// Interpret the result of a Action enum. If a function
+    /// was called, return its identifier.
+    fn handle_action(&mut self, next : &Action) -> Option<String> {
         match *next {
             Action::Function(ref action) => {
-                // TODO: send an event to be consumed
+                // TODO: Fix this shitty string clone
+                return Some(action.clone());
             },
             Action::Pop => {
                 self.pop_table();
             },
             Action::Nothing => {}
         }
+
+        None
     }
 
     // ###############################
@@ -174,26 +187,20 @@ impl Keymaster {
             .unwrap())
     }
 
-    /// Handle a key of new user input. Returns true if the key
-    /// got swallowed by any of this Keymaster's tables, otherwise
-    /// return false.
-    /// This will only return false if ALL wildcards in the tables
-    /// are Action::Nothing. This can happen in panes that want
-    /// to respect global bindings.
-    pub fn consume(&mut self, key : Key) -> bool {
+    /// Handle a key of new user input. 
+    pub fn consume(&mut self, key : Key) -> Option<String> {
         let mut action : Action = Action::Nothing;
 
         {
             let result = self.search_key(key);
 
             if result.is_none() {
-                return false;
+                return None;
             }
 
             action = result.unwrap().clone();
         }
 
-        self.handle_action(&action);
-        return true;
+        return self.handle_action(&action);
     }
 }

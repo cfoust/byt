@@ -24,6 +24,7 @@ mod events;
 mod io;
 
 // LOCAL INCLUDES
+use self::events::*;
 
 /// Initialize and start byt.
 pub fn init() {
@@ -42,7 +43,20 @@ pub fn init() {
         screen.flush().unwrap();
     }
 
-    let (sender, receiver) = channel::<events::Event>();
+    let (sender, receiver) = channel::<Event>();
+
+    let mut key_handler = io::binds::Keymaster::new();
+
+    {
+        let mut table = io::binds::BindingTable::new();
+
+        table.add_binding(io::binds::Binding::new(
+            Key::Char('q'), 
+            io::binds::Action::Function(String::from("quit")),
+        ));
+
+        key_handler.add_table(table);
+    }
 
     // One thread just reads from user input and makes
     // events from whatever it gets.
@@ -51,17 +65,20 @@ pub fn init() {
 
         for c in stdin.keys() {
             let key = c.unwrap();
-            sender.send(events::Event::KeyPress(key));
+            sender.send(Event::KeyPress(key)).unwrap();
         }
     });
 
     loop {
         let event = receiver.recv().unwrap();
 
-        if let events::Event::KeyPress(key) = event {
-            match key {
-                Key::Char('q') => break,
-                _ => {}
+        if let Event::KeyPress(key) = event {
+            let result = key_handler.consume(key);
+
+            if result.is_some() {
+                if result.unwrap() == "quit" {
+                    break;
+                }
             }
         }
     }
