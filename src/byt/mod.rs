@@ -51,35 +51,51 @@ pub fn init() {
         let mut table = io::binds::BindingTable::new();
 
         table.add_binding(io::binds::Binding::new(
-            Key::Char('q'), 
-            io::binds::Action::Function(String::from("quit")),
-        ));
+                Key::Char('q'), 
+                io::binds::Action::Function(String::from("quit")),
+                ));
+
+        table.add_binding(io::binds::Binding::new(
+                Key::Char('a'), 
+                io::binds::Action::Function(String::from("test")),
+                ));
 
         key_handler.add_table(table);
     }
 
     // One thread just reads from user input and makes
     // events from whatever it gets.
+    let key_sender = sender.clone();
     thread::spawn(move|| {
         let stdin = stdin();
 
         for c in stdin.keys() {
             let key = c.unwrap();
-            sender.send(Event::KeyPress(key)).unwrap();
+            key_sender.send(Event::KeyPress(key)).unwrap();
         }
     });
 
     loop {
         let event = receiver.recv().unwrap();
+        let sender = sender.clone();
 
         if let Event::KeyPress(key) = event {
             let result = key_handler.consume(key);
 
-            if result.is_some() {
-                if result.unwrap() == "quit" {
-                    break;
-                }
+            if result.is_none() {
+                continue;
             }
+
+            sender.send(Event::Function(result.unwrap()));
+        }
+
+        if let Event::Function(name) = event {
+            if name == "quit" {
+                break;
+            }
+
+            write!(screen, "{}", name.as_str());
+            screen.flush().unwrap();
         }
     }
 }

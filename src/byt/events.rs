@@ -11,7 +11,7 @@ use termion::event::Key;
 
 pub enum Event {
     /// An action that should be handled.
-    Action(String),
+    Function(String),
     /// Any keypress registered by stdio.
     KeyPress(Key)
 }
