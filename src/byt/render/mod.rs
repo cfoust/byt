@@ -32,6 +32,7 @@ pub trait Renderable {
 
 /// Trait for some simple methods to create renderers for our editor.
 pub trait Renderer {
+    // TODO: Return an error if you try to move the cursor outside of size().
     /// Move the cursor to the given position.
     fn move_cursor(&mut self, u16, u16) -> Result<()>;
 

@@ -5,8 +5,7 @@
 // EXTERNS
 
 // LIBRARY INCLUDES
-use std::io::Result;
-use std::io::Write;
+use std::io::{Write, ErrorKind, Error, Result};
 use termion::*;
 
 // SUBMODULES
@@ -15,12 +14,12 @@ use termion::*;
 use super::*;
 
 pub struct TermRenderer<'a> {
-    out : &'a Write
+    out : &'a mut Write
 }
 
 impl<'a> TermRenderer<'a> {
     /// Construct a new TermRenderer.
-    pub fn new(out : &'a Write) -> TermRenderer {
+    pub fn new(out : &'a mut Write) -> TermRenderer {
         TermRenderer {
             out
         }
@@ -29,15 +28,14 @@ impl<'a> TermRenderer<'a> {
 
 impl<'a> Renderer for TermRenderer<'a> {
     fn write(&mut self, text : &str) -> Result<()> {
-        Ok(())
+        write!(self.out, "{}", text)
     }
 
     fn move_cursor(&mut self, row : u16, col : u16) -> Result<()> {
-        Ok(())
+        write!(self.out, "{}", cursor::Goto(row, col))
     }
 
     fn size(&mut self) -> Result<(u16, u16)> {
-        Ok((0, 0))
+        terminal_size()
     }
 }
-
