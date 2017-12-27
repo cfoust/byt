@@ -20,7 +20,7 @@ being functional. The roadmap is as follows:
 - [X] Establish a system of interpreting key presses. Want this to be as robust
   as possible, allowing for an arbitrary number of modes and keybindings.
   Default to basic vim-esque bindings.
-- [ ] Define a Renderable trait that can render a window given its boundaries
+- [X] Define a Renderable trait that can render a window given its boundaries
   and and a struct that wraps all of Termion's render operations. This is so
   each pane can only render within its bounds. Trait should have `render()` and
   `should_render()` functions, which are used to render if necessary after

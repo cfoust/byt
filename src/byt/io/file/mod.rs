@@ -9,10 +9,7 @@
 use std::fmt;
 use std::fs::File;
 use std::fs::OpenOptions;
-use std::io::BufReader;
-use std::io::Read;
-use std::io::Seek;
-use std::io::SeekFrom;
+use std::io::{Read, Seek, SeekFrom};
 use std::io;
 use std::str;
 use std::time;
@@ -142,7 +139,7 @@ pub struct PieceFile<'a, T: Read + Seek + 'a> {
     reader : Option<&'a mut T>,
 }
 
-impl<'a, T> fmt::Display for PieceFile<'a, T> 
+impl<'a, T> fmt::Display for PieceFile<'a, T>
     where T: Read + Seek {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         write!(f, "PieceFile\n");
@@ -494,7 +491,7 @@ impl<'a, T> PieceFile<'a, T> where T: Read + Seek {
     }
 
     /// Open a new PieceFile given a seekable reader over some kind of data.
-    pub fn open(reader : &'a mut T, size : u64) -> io::Result<PieceFile<'a, T>> 
+    pub fn open(reader : &'a mut T, size : u64) -> io::Result<PieceFile<'a, T>>
         where T: Read + Seek {
 
         let mut piece_file = PieceFile {
