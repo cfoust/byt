@@ -22,6 +22,7 @@ use termion;
 // SUBMODULES
 mod events;
 mod io;
+mod render;
 
 // LOCAL INCLUDES
 use self::events::*;

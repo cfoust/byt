@@ -36,6 +36,9 @@ being functional. The roadmap is as follows:
 - [ ] Include Lua for editor extensibility. The MVP is that functions defined
   in Lua can be called from bindings. Also, Lua's functions should have access
   to all of the editor state that Rust-defined functions would.
+- [ ] Set up a system of mutations, which optionally attach to the pane or the
+  global editing context and provide a combination of binding tables and
+  functions.
 - [ ] As the user works with byt, optionally collect usage information that can
   suggest more efficient keybindings.
 - [ ] Create a UIView that extends Renderable and lets you create menus,

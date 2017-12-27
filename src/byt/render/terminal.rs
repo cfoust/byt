@@ -1,53 +1,43 @@
 //! byt - render::terminal
 //!
-//! This module implements a Renderer that outputs ANSI escape codes to
-//! STDOUT for use in an ANSI-compliant terminal.
+//! The TermRenderer uses Termion to perform the necessary operations.
 
 // EXTERNS
 
 // LIBRARY INCLUDES
+use std::io::Result;
+use std::io::Write;
+use termion::*;
 
 // SUBMODULES
 
 // LOCAL INCLUDES
-use byt::render::*;
-use byt::envs::os_unix::{Term};
+use super::*;
 
-pub struct TermRenderer {
-    term : Term,
+pub struct TermRenderer<'a> {
+    out : &'a Write
 }
 
-impl TermRenderer {
+impl<'a> TermRenderer<'a> {
     /// Construct a new TermRenderer.
-    pub fn new() -> TermRenderer {
+    pub fn new(out : &'a Write) -> TermRenderer {
         TermRenderer {
-            term : Term::new(),
+            out
         }
     }
 }
 
-impl Renderer for TermRenderer {
-    fn clear(&mut self) -> &mut Renderer {
-        self.term.clear_screen();
-        self
+impl<'a> Renderer for TermRenderer<'a> {
+    fn write(&mut self, text : &str) -> Result<()> {
+        Ok(())
     }
 
-    fn done(&mut self) {
+    fn move_cursor(&mut self, row : u16, col : u16) -> Result<()> {
+        Ok(())
     }
 
-    fn write(&mut self, out : &str) -> &mut Renderer {
-        self.term.write(out);
-        self
-    }
-
-    fn move_cursor(&mut self, row : u16, col : u16) -> &mut Renderer {
-        self.term.move_cursor(row, col);
-        self
-    }
-
-    fn size(&mut self) -> Point {
-        let (row, col) = self.term.get_size();
-        Point { row, col }
+    fn size(&mut self) -> Result<(u16, u16)> {
+        Ok((0, 0))
     }
 }
 
