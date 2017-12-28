@@ -410,7 +410,7 @@ impl PieceFile {
             },
             SourceFile::Original => {
                 let reader = self.reader.as_mut().unwrap();
-                reader.seek(SeekFrom::Start(piece.file_offset));
+                reader.seek(SeekFrom::Start(piece.logical_to_file(offset)));
                 reader.read(buf.as_mut_slice()).unwrap();
             },
         }
@@ -601,6 +601,12 @@ impl PieceFile {
         Ok(result)
     }
 
+    /// Read bytes from an offset.
+    pub fn read_at(&mut self, offset : u64, num_bytes : u64) -> io::Result<Box<String>> {
+        self.seek(SeekFrom::Start(offset));
+        self.read(num_bytes)
+    }
+
     /// Attempt to merge two pieces together given the index of the lower
     /// piece.
     fn merge_pieces(&mut self, index : usize) {
@@ -750,6 +756,8 @@ impl Seek for PieceFile {
             panic!("Seek offset less than 0");
         }
 
-        Ok(new_offset as u64)
+        self.offset = new_offset as u64;
+
+        Ok(self.offset)
     }
 }

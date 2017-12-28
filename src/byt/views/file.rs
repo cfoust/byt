@@ -52,6 +52,7 @@ impl FileView {
         let mut loc : u64 = 0;
         for line in lines {
             self.lines.push(loc);
+
             // This is terrible. Never do this. It assumes we never
             // have to deal with a line that has \r\n. There's no way
             // for us to discern whether we have one with this hacky
@@ -96,14 +97,24 @@ impl FileView {
         Ok(())
     }
 
-    /// Calculate the size of the viewport.
-    pub fn calculate_viewport(&self, size : (u16, u16)) -> (u64, u64) {
-        (0, 0)
+    /// Set the line that is the top of the viewport. Lines
+    /// are zero-indexed.
+    pub fn set_viewport_top(&mut self, line : u64) -> Result<()> {
+        // TODO: input validation
+        self.viewport_top = cmp::min(line, (self.lines.len() - 1) as u64);
+
+        Ok(())
     }
 
     /// Calculate the size of the viewport.
-    pub fn calculate_cursor_pos(&self, size : (u16, u16)) -> (u16, u16) {
-        (0, 0)
+    fn calculate_viewport(&mut self, size : (u16, u16)) -> (u64, u64) {
+        let (rows, cols) = size;
+        let viewport_loc = self.lines[self.viewport_top as usize];
+
+        // We'll come back and add support for multibyte characters
+        // at some point. For the time being I don't feel like 
+        // implementing it.
+        (viewport_loc, cmp::min((rows * cols) as u64, self.file.len()))
     }
 }
 
@@ -115,17 +126,30 @@ impl render::Renderable for FileView {
         // valid because of the validation done by other methods.
         let (start_offset, length) = self.calculate_viewport(size);
 
-        self.file.seek(SeekFrom::Start(start_offset));
+        let text = self.file.read_at(start_offset, length).unwrap();
 
-        let text = self.file.read(length).unwrap();
+        let cursor_loc = self.cursor_loc - start_offset;
 
-        let (cursor_row, cursor_col) = self.calculate_cursor_pos(size);
+        let mut counter          = 1;
+        let mut loc              = 0;
+        let mut cursor_row : u16 = 1;
+        let mut cursor_col : u16 = 1;
 
-        let mut counter = 1;
         for line in text.lines() {
+            if cursor_loc >= loc {
+                cursor_row = counter;
+                cursor_col = (cursor_loc - loc + 1) as u16;
+
+                if cursor_col == (line.len() + 1) as u16 {
+                    cursor_col -= 1;
+                }
+            }
+
             renderer.move_cursor(counter as u16, 1);
             renderer.write(line);
+
             counter += 1;
+            loc += (line.len() + 1) as u64;
         }
 
         renderer.move_cursor(cursor_row, cursor_col);

@@ -196,6 +196,18 @@ fn it_reads_across_three_pieces() {
 }
 
 #[test]
+fn it_reads_at_offset() {
+    let mut file = PieceFile::empty().unwrap();
+    assert_eq!(file.piece_table.len(), 0);
+
+    file.insert("bar", 0);
+    file.insert("bar", 0);
+
+    let read = file.read_at(1, 3).unwrap();
+    assert_eq!(read.as_str(), "arb");
+}
+
+#[test]
 fn it_undoes_an_insert() {
     let mut file = PieceFile::empty().unwrap();
     assert_eq!(file.piece_table.len(), 0);
