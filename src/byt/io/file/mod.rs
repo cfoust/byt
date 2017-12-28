@@ -9,7 +9,10 @@
 use std::fmt;
 use std::fs::File;
 use std::fs::OpenOptions;
-use std::io::{Read, Seek, SeekFrom};
+use std::io::BufReader;
+use std::io::Read;
+use std::io::Seek;
+use std::io::SeekFrom;
 use std::io;
 use std::str;
 use std::time;
@@ -18,22 +21,6 @@ use std::time;
 mod tests;
 
 // LOCAL INCLUDES
-
-/// A buffer with nothing in it for PieceFiles that
-/// have nothing in them.
-pub struct Empty {}
-
-impl Seek for Empty {
-    fn seek(&mut self, pos : SeekFrom) -> io::Result<u64> {
-        Ok(0)
-    }
-}
-
-impl Read for Empty {
-    fn read(&mut self, buf: &mut [u8]) -> io::Result<usize> {
-        Ok(0)
-    }
-}
 
 #[derive(Debug, Copy, Clone, PartialEq)]
 enum SourceFile {
@@ -58,7 +45,7 @@ struct Piece {
 }
 
 impl Piece {
-    /// Convert a logical offset, which is piece-table global, to an offset
+    /// Convert a logical offset, which is piece-table global, to an offset 
     /// inside the Piece's file.
     pub fn logical_to_file(&self, offset : u64) -> u64 {
         return (offset - self.logical_offset) + self.file_offset;
@@ -119,7 +106,7 @@ impl fmt::Display for Action {
 
 /// Implements logical operations on a file that are not written
 /// until asked to.
-pub struct PieceFile<'a, T: Read + Seek + 'a> {
+pub struct PieceFile {
     /// Stores all mutation operations of the file so that we can
     /// undo.
     actions : Vec<Action>,
@@ -136,11 +123,10 @@ pub struct PieceFile<'a, T: Read + Seek + 'a> {
     /// Stores all current Pieces.
     piece_table : Vec<Piece>,
     /// The seekable file reader.
-    reader : Option<&'a mut T>,
+    reader : Option<BufReader<File>>,
 }
 
-impl<'a, T> fmt::Display for PieceFile<'a, T>
-    where T: Read + Seek {
+impl fmt::Display for PieceFile {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         write!(f, "PieceFile\n");
         write!(f, "history_offset={}\n", self.history_offset);
@@ -159,7 +145,7 @@ impl<'a, T> fmt::Display for PieceFile<'a, T>
     }
 }
 
-impl<'a, T> PieceFile<'a, T> where T: Read + Seek {
+impl PieceFile {
     // #################################
     // P R I V A T E  F U N C T I O N S
     // #################################
@@ -170,6 +156,7 @@ impl<'a, T> PieceFile<'a, T> where T: Read + Seek {
         let end_offset   = offset + length;
         let start_index  = self.get_at_offset(start_offset);
         let end_index    = self.get_at_offset(end_offset);
+        let delete_size  = ((end_index - start_index) as u64) + 1;
         let num_pieces   = (end_index - start_index) + 1;
 
         let mut action = Action {
@@ -318,7 +305,7 @@ impl<'a, T> PieceFile<'a, T> where T: Read + Seek {
 
     /// Insert some text. Returns the action corresponding
     /// to the insert.
-    fn _insert(&mut self, text : &str, offset : u64) -> Action {
+    pub fn _insert(&mut self, text : &str, offset : u64) -> Action {
         let length = text.len() as u64;
         let append_offset = self.append_file.len() as u64;
 
@@ -405,7 +392,8 @@ impl<'a, T> PieceFile<'a, T> where T: Read + Seek {
     /// The `offset` refers to logical offset in the whole piece
     /// table, not file-specific offset.
     fn read_piece(&mut self, piece : Piece, offset : u64, num_bytes : u64, dest : &mut String) {
-        let mut buf = vec![0 as u8; num_bytes as usize];
+        let piece_start_offset = piece.logical_offset;
+        let mut buf            = vec![0 as u8; num_bytes as usize];
 
         match piece.file {
             SourceFile::Append => {
@@ -482,6 +470,21 @@ impl<'a, T> PieceFile<'a, T> where T: Read + Seek {
         self.actions.push(action);
     }
 
+    /// Create a new empty PieceFile.
+    pub fn empty() -> io::Result<Box<PieceFile>> {
+        let piece_file = PieceFile {
+            actions        : Vec::new(),
+            append_file    : String::new(),
+            history_offset : 0,
+            length         : 0,
+            offset         : 0,
+            piece_table    : Vec::new(),
+            reader         : None,
+        };
+
+        Ok(Box::new(piece_file))
+    }
+
     /// Insert some text. Returns the action corresponding
     /// to the insert.
     pub fn insert(&mut self, text : &str, offset : u64) {
@@ -490,9 +493,14 @@ impl<'a, T> PieceFile<'a, T> where T: Read + Seek {
         self.actions.push(action);
     }
 
-    /// Open a new PieceFile given a seekable reader over some kind of data.
-    pub fn open(reader : &'a mut T, size : u64) -> io::Result<PieceFile<'a, T>>
-        where T: Read + Seek {
+    /// Open a new PieceFile. If the file doesn't exist, it is created.
+    pub fn open(path : &str) -> io::Result<Box<PieceFile>> {
+        let file = OpenOptions::new()
+            .read(true)
+            .open(path).unwrap();
+
+        // Get the length of the file to initialize the first Piece
+        let size = file.metadata().unwrap().len() as u64;
 
         let mut piece_file = PieceFile {
             actions        : Vec::new(),
@@ -501,7 +509,7 @@ impl<'a, T> PieceFile<'a, T> where T: Read + Seek {
             length         : size,
             offset         : 0,
             piece_table    : Vec::new(),
-            reader         : Some(reader),
+            reader         : Some(BufReader::new(file)),
         };
 
         piece_file.piece_table.push(Piece {
@@ -511,7 +519,7 @@ impl<'a, T> PieceFile<'a, T> where T: Read + Seek {
             logical_offset : 0,
         });
 
-        Ok(piece_file)
+        Ok(Box::new(piece_file))
     }
 
     /// Read characters from the buffer. The result is guaranteed to
@@ -621,6 +629,8 @@ impl<'a, T> PieceFile<'a, T> where T: Read + Seek {
 
         let action_index = self.actions.len() - self.history_offset;
         let action       = self.actions[action_index].clone();
+        let index        = self.get_at_offset(action.offset);
+        let last_index   = index + action.pieces.len() - 1;
 
         self.history_offset -= 1;
 
@@ -723,7 +733,7 @@ impl<'a, T> PieceFile<'a, T> where T: Read + Seek {
     }
 }
 
-impl<'a, T> Seek for PieceFile<'a, T> where T: Read + Seek {
+impl Seek for PieceFile {
     fn seek(&mut self, pos : SeekFrom) -> io::Result<u64> {
         let new_offset = match pos {
             SeekFrom::Start(v)   => v as i64,
@@ -737,19 +747,4 @@ impl<'a, T> Seek for PieceFile<'a, T> where T: Read + Seek {
 
         Ok(new_offset as u64)
     }
-}
-
-/// Create an empty PieceFile.
-pub fn empty<'a>() -> io::Result<PieceFile<'a, Empty>> {
-    let piece_file = PieceFile {
-        actions        : Vec::new(),
-        append_file    : String::new(),
-        history_offset : 0,
-        length         : 0,
-        offset         : 0,
-        piece_table    : Vec::new(),
-        reader         : None,
-    };
-
-    Ok(piece_file)
 }
