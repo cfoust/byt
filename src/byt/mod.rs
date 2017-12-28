@@ -79,7 +79,7 @@ pub fn init() {
         }
     });
 
-    let mut view = views::file::FileView::new("README.md");
+    let mut view = views::file::FileView::new("README.md").unwrap();
 
     let mut files = Vec::new();
     files.push(view);
@@ -109,9 +109,9 @@ pub fn init() {
                 // Clear the screen before rendering
                 write!(screen, "{}", termion::clear::All);
 
-                for file in files.iter() {
-                    let renderer = render::terminal::TermRenderer::new(&mut screen);
-                    file.render(&renderer, size);
+                for file in files.iter_mut() {
+                    let mut renderer = render::terminal::TermRenderer::new(&mut screen);
+                    file.render(&mut renderer, size);
                 }
 
                 screen.flush().unwrap();

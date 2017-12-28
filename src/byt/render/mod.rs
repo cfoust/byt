@@ -24,7 +24,7 @@ pub struct Point {
 /// Describes a struct that can be rendered in text.
 pub trait Renderable {
     /// Does everything necessary to update the visible contents.
-    fn render(&self, renderer : &Renderer, size : (u16, u16)) -> Result<()>;
+    fn render(&mut self, renderer : &mut Renderer, size : (u16, u16)) -> Result<()>;
 
     /// Whether or not this entity should be rendered on this frame.
     fn should_render(&self) -> bool;
