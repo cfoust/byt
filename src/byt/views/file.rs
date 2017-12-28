@@ -9,6 +9,8 @@ use std::cmp;
 use std::fs::File;
 use std::fs;
 use std::io::{BufReader, ErrorKind, Error, Result};
+use std::io::Seek;
+use std::io::SeekFrom;
 
 // SUBMODULES
 
@@ -93,6 +95,16 @@ impl FileView {
 
         Ok(())
     }
+
+    /// Calculate the size of the viewport.
+    pub fn calculate_viewport(&self, size : (u16, u16)) -> (u64, u64) {
+        (0, 0)
+    }
+
+    /// Calculate the size of the viewport.
+    pub fn calculate_cursor_pos(&self, size : (u16, u16)) -> (u16, u16) {
+        (0, 0)
+    }
 }
 
 impl render::Renderable for FileView {
@@ -109,33 +121,14 @@ impl render::Renderable for FileView {
 
         let (cursor_row, cursor_col) = self.calculate_cursor_pos(size);
 
+        let mut counter = 1;
         for line in text.lines() {
-            if counter >= rows {
-                break;
-            }
-
-            end_loc += line.len() + 1; // Because of the newline char
-
-            if cursor_loc < end_loc && cursor_loc >= start_loc {
-                cursor_row = counter;
-                cursor_col = (cursor_loc - start_loc + 1) as u16;
-
-                // Can't put the cursor on a newline char. Go down
-                // one. This might break if you have a file that
-                // uses \r\n
-                if cursor_col == (line.len() + 1) as u16 {
-                    cursor_col -= 1;
-                }
-            }
-
             renderer.move_cursor(counter as u16, 1);
             renderer.write(line);
-
-            start_loc = end_loc;
             counter += 1;
         }
 
-        renderer.move_cursor(cursor_row as u16, cursor_col as u16);
+        renderer.move_cursor(cursor_row, cursor_col);
 
         self._should_render = false;
 
