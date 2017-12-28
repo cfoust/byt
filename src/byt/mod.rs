@@ -79,7 +79,8 @@ pub fn init() {
         }
     });
 
-    let mut view = views::file::FileView::new("test").unwrap();
+    let mut view = views::file::FileView::new("README.md").unwrap();
+    view.set_cursor(2500);
 
     let mut files = Vec::new();
     files.push(view);

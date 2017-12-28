@@ -5,6 +5,7 @@
 // EXTERNS
 
 // LIBRARY INCLUDES
+use std::cmp;
 use std::fs::File;
 use std::fs;
 use std::io::{BufReader, ErrorKind, Error, Result};
@@ -21,7 +22,15 @@ pub struct FileView {
     file : Box<PieceFile>,
 
     /// The location of the cursor in the file
-    loc  : u64,
+    cursor_loc : u64,
+
+    /// The line number of the top of the viewport.
+    /// Line numbers are zero-indexed.
+    viewport_top : u64,
+
+    /// A Vec of the locations of line ending characters.
+    /// Regenerated after insertion or deletion.
+    lines : Vec<u64>,
 
     /// Whether or not this view should be rendered after
     /// the next event.
@@ -29,15 +38,41 @@ pub struct FileView {
 }
 
 impl FileView {
+    /// Rebuild self.lines to have the proper line locations.
+    fn regenerate_lines(&mut self) {
+        // Read the whole piece file.
+        let length = self.file.len();
+        let text   = self.file.read(length).unwrap();
+        let lines  = text.lines();
+
+        self.lines.clear();
+
+        let mut loc : u64 = 0;
+        for line in lines {
+            self.lines.push(loc);
+            // This is terrible. Never do this. It assumes we never
+            // have to deal with a line that has \r\n. There's no way
+            // for us to discern whether we have one with this hacky
+            // approach.
+            loc += (line.len() + 1) as u64;
+        }
+    }
+
     /// Make a new FileView with a predefined path. Does not attempt to open the file
     /// corresponding to the path.  You must call open() on the returned instance to do so.
     pub fn new(path : &str) -> Result<FileView> {
-        Ok(FileView {
+        let mut view = FileView {
             path : Option::Some(String::from(path)),
             file : PieceFile::open(path).unwrap(),
-            loc  : 0,
+            cursor_loc : 0,
+            viewport_top : 0,
+            lines : Vec::new(),
             _should_render : true,
-        })
+        };
+
+        view.regenerate_lines();
+
+        Ok(view)
     }
 
     /// Make a new FileView with an empty, in-memory PieceFile.
@@ -45,9 +80,18 @@ impl FileView {
         Ok(FileView {
             path : Option::None,
             file : PieceFile::empty().unwrap(),
-            loc  : 0,
+            cursor_loc : 0,
+            viewport_top : 0,
+            lines : Vec::new(),
             _should_render : true,
         })
+    }
+
+    /// Set the cursor's location in the file.
+    pub fn set_cursor(&mut self, loc : u64) -> Result<()> {
+        self.cursor_loc = cmp::min(loc, self.file.len());
+
+        Ok(())
     }
 }
 
@@ -55,22 +99,21 @@ impl render::Renderable for FileView {
     fn render(&mut self, renderer : &mut render::Renderer, size : (u16, u16)) -> Result<()> {
         let (rows, cols) = size;
 
-        // The maximum number of characters we could display.
-        let num_characters = (rows * cols) as u64;
+        // We can assume that self.cursor_loc and self.viewport_top are
+        // valid because of the validation done by other methods.
+        let (start_offset, length) = self.calculate_viewport(size);
 
-        let text = self.file.read(num_characters).unwrap();
+        self.file.seek(SeekFrom::Start(start_offset));
 
-        let mut counter = 1;
+        let text = self.file.read(length).unwrap();
 
-        // These track the current line we're rendering
-        let mut start_loc = 0;
-        let mut end_loc = 0;
-
-        let mut cursor_loc = self.loc as usize;
-        let mut cursor_row : u16 = 1;
-        let mut cursor_col : u16 = 1;
+        let (cursor_row, cursor_col) = self.calculate_cursor_pos(size);
 
         for line in text.lines() {
+            if counter >= rows {
+                break;
+            }
+
             end_loc += line.len() + 1; // Because of the newline char
 
             if cursor_loc < end_loc && cursor_loc >= start_loc {

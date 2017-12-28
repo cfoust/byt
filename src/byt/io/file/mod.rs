@@ -410,6 +410,7 @@ impl PieceFile {
             },
             SourceFile::Original => {
                 let reader = self.reader.as_mut().unwrap();
+                reader.seek(SeekFrom::Start(piece.file_offset));
                 reader.read(buf.as_mut_slice()).unwrap();
             },
         }
