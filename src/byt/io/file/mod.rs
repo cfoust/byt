@@ -522,6 +522,10 @@ impl PieceFile {
         Ok(Box::new(piece_file))
     }
 
+    pub fn len(&self) -> u64 {
+        self.length
+    }
+
     /// Read characters from the buffer. The result is guaranteed to
     /// contain only whole UTF-8 graphemes and have at MOST `num_bytes`.
     /// If taking the provided number of bytes would result in a panic

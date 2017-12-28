@@ -79,7 +79,7 @@ pub fn init() {
         }
     });
 
-    let mut view = views::file::FileView::new("LICENSE").unwrap();
+    let mut view = views::file::FileView::new("test").unwrap();
 
     let mut files = Vec::new();
     files.push(view);
@@ -102,9 +102,6 @@ pub fn init() {
             if name == "quit" {
                 break;
             }
-
-            if name == "render" {
-            }
         }
 
         // Check if we should render
@@ -123,12 +120,11 @@ pub fn init() {
         write!(screen, "{}", termion::clear::All);
 
         for file in files.iter_mut() {
-            let mut renderer = render::terminal::TermRenderer::new(&mut screen);
-
             if !file.should_render() {
                 continue;
             }
 
+            let mut renderer = render::terminal::TermRenderer::new(&mut screen);
             file.render(&mut renderer, size);
         }
 
