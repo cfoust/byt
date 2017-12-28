@@ -46,7 +46,6 @@ impl render::Renderable for FileView {
         /// The maximum number of characters we could display.
         let num_characters = (rows * cols) as u64;
 
-
         let text = self.file.read(num_characters).unwrap();
 
         let mut counter = 1;
