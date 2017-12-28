@@ -79,7 +79,7 @@ pub fn init() {
         }
     });
 
-    let mut view = views::file::FileView::new("README.md").unwrap();
+    let mut view = views::file::FileView::new("LICENSE").unwrap();
 
     let mut files = Vec::new();
     files.push(view);

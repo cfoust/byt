@@ -43,14 +43,24 @@ impl FileView {
 impl render::Renderable for FileView {
     fn render(&mut self, renderer : &mut render::Renderer, size : (u16, u16)) -> Result<()> {
         let (rows, cols) = size;
-        renderer.move_cursor(1, 1);
-        let text = self.file.read(200).unwrap();
-        renderer.write(&text);
+        /// The maximum number of characters we could display.
+        let num_characters = (rows * cols) as u64;
+
+
+        let text = self.file.read(num_characters).unwrap();
+
+        let mut counter = 1;
+
+        for line in text.lines() {
+            renderer.move_cursor(counter, 1);
+            renderer.write(line);
+            counter += 1;
+        }
 
         Ok(())
     }
 
     fn should_render(&self) -> bool {
-        false
+        true
     }
 }

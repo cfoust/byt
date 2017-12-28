@@ -32,10 +32,26 @@ impl<'a> Renderer for TermRenderer<'a> {
     }
 
     fn move_cursor(&mut self, row : u16, col : u16) -> Result<()> {
-        write!(self.out, "{}", cursor::Goto(row, col))
+        write!(self.out, "{}", cursor::Goto(col, row))
     }
 
     fn size(&mut self) -> Result<(u16, u16)> {
         terminal_size()
+    }
+
+    fn down(&mut self) -> Result<()> {
+        write!(self.out, "{}", cursor::Down(1))
+    }
+
+    fn right(&mut self) -> Result<()> {
+        write!(self.out, "{}", cursor::Right(1))
+    }
+
+    fn left(&mut self) -> Result<()> {
+        write!(self.out, "{}", cursor::Left(1))
+    }
+
+    fn up(&mut self) -> Result<()> {
+        write!(self.out, "{}", cursor::Up(1))
     }
 }

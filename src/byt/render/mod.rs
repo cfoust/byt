@@ -41,4 +41,16 @@ pub trait Renderer {
 
     /// Get the current size of the rendering context in rows and columns.
     fn size(&mut self) -> Result<(u16, u16)>;
+
+    /// Move the cursor down.
+    fn down(&mut self) -> Result<()>;
+
+    /// Move the cursor right.
+    fn right(&mut self) -> Result<()>;
+
+    /// Move the cursor left.
+    fn left(&mut self) -> Result<()>;
+
+    /// Move the cursor up.
+    fn up(&mut self) -> Result<()>;
 }
