@@ -11,7 +11,7 @@
 use std::io::Result;
 
 // SUBMODULES
-mod terminal;
+pub mod terminal;
 
 // LOCAL INCLUDES
 

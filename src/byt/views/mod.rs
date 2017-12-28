@@ -11,6 +11,6 @@
 // LIBRARY INCLUDES
 
 // SUBMODULES
-mod file;
+pub mod file;
 
 // LOCAL INCLUDES

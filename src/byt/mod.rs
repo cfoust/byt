@@ -27,6 +27,8 @@ mod views;
 
 // LOCAL INCLUDES
 use self::events::*;
+use byt::render::Renderable;
+use byt::io::file;
 
 /// Initialize and start byt.
 pub fn init() {
@@ -59,7 +61,7 @@ pub fn init() {
 
         table.add_binding(io::binds::Binding::new(
                 Key::Char('a'),
-                io::binds::Action::Function(String::from("test")),
+                io::binds::Action::Function(String::from("render")),
                 ));
 
         key_handler.add_table(table);
@@ -76,6 +78,11 @@ pub fn init() {
             key_sender.send(Event::KeyPress(key)).unwrap();
         }
     });
+
+    let mut view = views::file::FileView::new("README.md");
+
+    let mut files = Vec::new();
+    files.push(view);
 
     loop {
         let event = receiver.recv().unwrap();
@@ -96,8 +103,19 @@ pub fn init() {
                 break;
             }
 
-            write!(screen, "{}", name.as_str());
-            screen.flush().unwrap();
+            if name == "render" {
+                let size = termion::terminal_size().unwrap();
+
+                // Clear the screen before rendering
+                write!(screen, "{}", termion::clear::All);
+
+                for file in files.iter() {
+                    let renderer = render::terminal::TermRenderer::new(&mut screen);
+                    file.render(&renderer, size);
+                }
+
+                screen.flush().unwrap();
+            }
         }
     }
 }
