@@ -104,18 +104,34 @@ pub fn init() {
             }
 
             if name == "render" {
-                let size = termion::terminal_size().unwrap();
-
-                // Clear the screen before rendering
-                write!(screen, "{}", termion::clear::All);
-
-                for file in files.iter_mut() {
-                    let mut renderer = render::terminal::TermRenderer::new(&mut screen);
-                    file.render(&mut renderer, size);
-                }
-
-                screen.flush().unwrap();
             }
         }
+
+        // Check if we should render
+        let mut should_render = false;
+        for file in files.iter() {
+            should_render = should_render || file.should_render();
+        }
+
+        if !should_render {
+            continue;
+        }
+
+        let size = termion::terminal_size().unwrap();
+
+        // Clear the screen before rendering
+        write!(screen, "{}", termion::clear::All);
+
+        for file in files.iter_mut() {
+            let mut renderer = render::terminal::TermRenderer::new(&mut screen);
+
+            if !file.should_render() {
+                continue;
+            }
+
+            file.render(&mut renderer, size);
+        }
+
+        screen.flush().unwrap();
     }
 }

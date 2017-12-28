@@ -18,7 +18,8 @@ use byt::render;
 pub struct FileView {
     /// The path to the file this FileView references.
     path : Option<String>,
-    file : Box<PieceFile>
+    file : Box<PieceFile>,
+    _should_render : bool,
 }
 
 impl FileView {
@@ -28,6 +29,7 @@ impl FileView {
         Ok(FileView {
             path : Option::Some(String::from(path)),
             file : PieceFile::open(path).unwrap(),
+            _should_render : true,
         })
     }
 
@@ -36,6 +38,7 @@ impl FileView {
         Ok(FileView {
             path : Option::None,
             file : PieceFile::empty().unwrap(),
+            _should_render : true,
         })
     }
 }
@@ -56,10 +59,12 @@ impl render::Renderable for FileView {
             counter += 1;
         }
 
+        self._should_render = false;
+
         Ok(())
     }
 
     fn should_render(&self) -> bool {
-        true
+        self._should_render
     }
 }
