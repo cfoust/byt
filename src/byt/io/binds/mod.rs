@@ -15,6 +15,7 @@ use termion::event::Key;
 /// the state machine reaches this state. It's called an arrow
 /// because it refers to the next state, even if that involves
 /// sending an action up to the editor as a result.
+#[derive(Clone)]
 pub enum Arrow {
     /// Triggers some kind of action within the editor.
     /// In the future this will be a reference to a closure, probably.
@@ -203,9 +204,27 @@ impl Keymaster {
         }
     }
 
+    fn search_key(&self, key : Key) -> Option<&Arrow> {
+        self.get_state().search_key(key)
+    }
+
     /// Handle a key of new user input.
     pub fn consume(&mut self, key : Key) -> Option<String> {
-        let mut action : Arrow = Arrow::Nothing;
+        let mut action : Arrow;
+
+        // I kind of hate the fact that I have to clone
+        // the result, but it's a product of Rust's sensible
+        // rules wherein you can't have multiple mutable/immutable
+        // references at once.
+        {
+            let result = self.search_key(key);
+
+            if result.is_none() {
+                return None
+            }
+
+            action = (*result.unwrap()).clone();
+        }
 
         return self.handle_action(&action);
     }
