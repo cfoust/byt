@@ -25,7 +25,7 @@ being functional. The roadmap is as follows:
   each pane can only render within its bounds. Trait should have `render()` and
   `should_render()` functions, which are used to render if necessary after
   every event.
-- [ ] Create a FileView that acts as a viewport into a PieceFile. Manages all
+- [X] Create a FileView that acts as a viewport into a PieceFile. Manages all
   aspects of reading, writing, and creating files.
 - [ ] byt should have a system similar to emacs where action identifiers are a
   first-class citizen. All keybindings that correspond to an action really are
