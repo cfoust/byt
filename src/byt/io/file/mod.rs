@@ -7,12 +7,17 @@
 
 // LIBRARY INCLUDES
 use std::fmt;
-use std::fs::File;
-use std::fs::OpenOptions;
-use std::io::BufReader;
-use std::io::Read;
-use std::io::Seek;
-use std::io::SeekFrom;
+use std::fs::{File, OpenOptions};
+use std::io::{
+    BufReader,
+    Error,
+    ErrorKind,
+    Read, 
+    Result,
+    Seek, 
+    SeekFrom, 
+    Write
+};
 use std::io;
 use std::str;
 use std::time;
@@ -494,10 +499,34 @@ impl PieceFile {
         self.actions.push(action);
     }
 
+    /// Save the PieceFile's contents to disk.
+    pub fn save(&mut self) -> io::Result<(u64)> {
+        if self.reader.is_none() {
+            return Err(Error::new(ErrorKind::InvalidInput, "Empty PieceFile"));
+        }
+
+        let mut text : Box<String>;
+        {
+            let length = self.len();
+            text = self.read_at(0, length)?;
+        }
+
+        let mut file = self.reader.as_ref().unwrap().get_ref();
+        file.write_all(text.as_bytes())?;
+
+        Ok((file.metadata().unwrap().len()))
+    }
+
+    /// Check if this PieceFile refers to any file.
+    pub fn is_empty(&self) -> bool {
+        self.reader.is_none()
+    }
+
     /// Open a new PieceFile. If the file doesn't exist, it is created.
     pub fn open(path : &str) -> io::Result<Box<PieceFile>> {
         let file = OpenOptions::new()
             .read(true)
+            .write(true)
             .open(path).unwrap();
 
         // Get the length of the file to initialize the first Piece
