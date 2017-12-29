@@ -15,26 +15,29 @@ mod tests;
 /// the state machine reaches this state. It's called an arrow
 /// because it refers to the next state, even if that involves
 /// sending an action up to the editor as a result.
-pub enum Arrow<'a> {
+pub enum Arrow {
     /// Triggers some kind of action within the editor.
     /// In the future this will be a reference to a closure, probably.
     /// For now we just use strings for ease of testing.
     Function(String),
-    Table(&'a mut BindingTable<'a>),
+
+    /// Refers to a table within the Keymaster
+    Table(usize),
+
     /// Stay in the current table and do nothing.
     Nothing
 }
 
 /// The association of a key to some action.
-struct Binding<'a> {
+struct Binding {
     // The key that will yield the result.
     key    : Key,
     // Either an action or a table of new bindings.
-    result : Arrow<'a>,
+    result : Arrow,
 }
 
-impl<'a> Binding<'a> {
-    pub fn new(key : Key, result : Arrow<'a>) -> Binding<'a> {
+impl Binding {
+    pub fn new(key : Key, result : Arrow) -> Binding {
         Binding {
             key,
             result
@@ -43,15 +46,18 @@ impl<'a> Binding<'a> {
 }
 
 /// A table of bindings.
-struct BindingTable<'a> {
-    bindings : Vec<Binding<'a>>,
+pub struct BindingTable {
+    bindings : Vec<Binding>,
     /// Describes what happens when a key matches nothing in the list
     /// of bindings. If `wildcard` is an Arrow, it is invoked with
     /// the key.
-    wildcard : Arrow<'a>
+    wildcard : Arrow,
+
+    /// Unique id within the Keymaster
+    id : usize,
 }
 
-impl<'a> BindingTable<'a> {
+impl BindingTable {
     // #################################
     // P R I V A T E  F U N C T I O N S
     // #################################
@@ -72,28 +78,29 @@ impl<'a> BindingTable<'a> {
     // ###############################
 
     /// Make a new BindingTable without anything in it.
-    pub fn new() -> BindingTable<'a> {
+    pub fn new(id : usize) -> BindingTable {
         BindingTable {
             bindings : Vec::new(),
-            wildcard : Arrow::Nothing
+            wildcard : Arrow::Nothing,
+            id,
         }
     }
 
     /// Add a binding to the table.
-    pub fn add_binding(&mut self, binding : Binding<'a>) {
+    pub fn add_binding(&mut self, binding : Binding) {
         self.ensure_unique(binding.key);
         self.bindings.push(binding);
     }
 
     /// Set the wildcard action.
-    pub fn set_wildcard(&mut self, action : Arrow<'a>) {
+    pub fn set_wildcard(&mut self, action : Arrow) {
         self.wildcard = action;
     }
 
     /// Look through the table for any entries that match
     /// the given key or the wildcard otherwise. Return
     /// that key's action if so.
-    pub fn search_key(&self, key : Key) -> Option<&'a Arrow> {
+    pub fn search_key(&self, key : Key) -> Option<&Arrow> {
         let entry = self.bindings
             .iter()
             .find(|ref x| x.key == key);
@@ -111,12 +118,23 @@ impl<'a> BindingTable<'a> {
 }
 
 /// Takes in keys and returns actions or tables.
-pub struct Keymaster<'a> {
-    root_table : BindingTable<'a>,
-    current_table : Option<&'a mut BindingTable<'a>>,
+pub struct Keymaster {
+    /// The id of the current state (binding table).
+    current_table : usize,
+
+    /// Specifies the id of the next binding table that's
+    /// created.
+    id_counter : usize,
+
+    /// The root table with id 0.
+    root_table : BindingTable,
+
+    /// All other binding tables. They are referred to by
+    /// their id.
+    tables : Vec<BindingTable>,
 }
 
-impl<'a> Keymaster<'a> {
+impl Keymaster {
     // #################################
     // P R I V A T E  F U N C T I O N S
     // #################################
@@ -124,12 +142,17 @@ impl<'a> Keymaster<'a> {
     /// Get the current state (i.e the current binding table) of
     /// the Keymaster. If the current table has not been set, it
     /// will be set to the root table.
-    fn get_state(&mut self) -> &'a mut BindingTable {
-        if self.current_table.is_none() {
-            self.current_table = Option::Some(&mut self.root_table);
+    fn get_state(&self) -> &BindingTable {
+        self.get_table(self.current_table).unwrap()
+    }
+
+    /// Get a reference to a table given its id.
+    fn get_table(&self, id : usize) -> Option<&BindingTable> {
+        if id == 0 {
+            return Some(&self.root_table)
         }
 
-        self.current_table.as_mut().unwrap()
+        self.tables.iter().find(|ref x| x.id == id)
     }
 
     /// Interpret the result of a Arrow enum. If a function
@@ -144,18 +167,25 @@ impl<'a> Keymaster<'a> {
         None
     }
 
+    /// Make a new table with an assigned id.
+    fn new_table(&mut self) -> &BindingTable {
+        self.tables.push(BindingTable::new(self.id_counter));
+        self.id_counter += 1;
+        self.get_table(self.id_counter - 1).unwrap()
+    }
+
     /// Search through the tables in the Keymaster for a binding
-    /// that matches a key. 
-    fn search_key(&mut self, key : Key) -> Option<&'a Arrow> {
+    /// that matches a key.
+    fn search_key(&mut self, key : Key) -> Option<&Arrow> {
         let mut action : Option<&Arrow> = Option::None;
 
         // Start from the top of the stack and go down.
         //for table in self.tables.iter().rev() {
-            //action = table.search_key(key);
+        //action = table.search_key(key);
 
-            //if action.is_some() {
-                //break
-            //}
+        //if action.is_some() {
+        //break
+        //}
         //}
 
         action
@@ -167,14 +197,16 @@ impl<'a> Keymaster<'a> {
 
     /// Create a new Keymaster and return it.
     /// Initially there are nothing in its bindings.
-    pub fn new() -> Keymaster<'a> {
+    pub fn new() -> Keymaster {
         Keymaster {
-            root_table : BindingTable::new(),
-            current_table : Option::None,
+            root_table : BindingTable::new(0),
+            current_table : 0,
+            tables : Vec::new(),
+            id_counter : 1
         }
     }
 
-    /// Handle a key of new user input. 
+    /// Handle a key of new user input.
     pub fn consume(&mut self, key : Key) -> Option<String> {
         let mut action : Arrow = Arrow::Nothing;
 
