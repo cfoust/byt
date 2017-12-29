@@ -25,6 +25,9 @@ pub enum Arrow {
     /// Refers to a table within the Keymaster
     Table(usize),
 
+    /// Go back to the root table.
+    Root,
+
     /// Stay in the current table and do nothing.
     Nothing
 }
@@ -176,6 +179,9 @@ impl Keymaster {
                     self.current_table = id;
                 }
             },
+            Arrow::Root => {
+                self.go_home();
+            },
             Arrow::Nothing => {}
         }
 
@@ -189,26 +195,18 @@ impl Keymaster {
         self.get_table(self.id_counter - 1).unwrap()
     }
 
-    // ###############################
-    // P U B L I C  F U N C T I O N S
-    // ###############################
-
-    /// Create a new Keymaster and return it.
-    /// Initially there are nothing in its bindings.
-    pub fn new() -> Keymaster {
-        Keymaster {
-            root_table : BindingTable::new(0),
-            current_table : 0,
-            tables : Vec::new(),
-            id_counter : 1
-        }
-    }
-
+    /// Attempt to get an action for a key if it is
+    /// evaluated in the current binding table.
     fn search_key(&self, key : Key) -> Option<&Arrow> {
         self.get_state().search_key(key)
     }
 
-    /// Handle a key of new user input.
+    // ###############################
+    // P U B L I C  F U N C T I O N S
+    // ###############################
+
+    /// Handle a key of new user input. If an action got fired
+    /// this method will return it.
     pub fn consume(&mut self, key : Key) -> Option<String> {
         let mut action : Arrow;
 
@@ -227,5 +225,21 @@ impl Keymaster {
         }
 
         return self.handle_action(&action);
+    }
+
+    /// Return to the initial (root) state.
+    pub fn go_home(&mut self) {
+        self.current_table = 0;
+    }
+
+    /// Create a new Keymaster and return it.
+    /// Initially there are nothing in its bindings.
+    pub fn new() -> Keymaster {
+        Keymaster {
+            root_table : BindingTable::new(0),
+            current_table : 0,
+            tables : Vec::new(),
+            id_counter : 1
+        }
     }
 }
