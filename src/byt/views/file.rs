@@ -40,6 +40,21 @@ pub struct FileView {
 }
 
 impl FileView {
+    // #################################
+    // P R I V A T E  F U N C T I O N S
+    // #################################
+
+    /// Calculate the size of the viewport.
+    fn calculate_viewport(&mut self, size : (u16, u16)) -> (u64, u64) {
+        let (rows, cols) = size;
+        let viewport_loc = self.lines[self.viewport_top as usize];
+
+        // We'll come back and add support for multibyte characters
+        // at some point. For the time being I don't feel like 
+        // implementing it.
+        (viewport_loc, cmp::min((rows * cols) as u64, self.file.len()))
+    }
+
     /// Rebuild self.lines to have the proper line locations.
     fn regenerate_lines(&mut self) {
         // Read the whole piece file.
@@ -61,6 +76,50 @@ impl FileView {
         }
     }
 
+    // ###############################
+    // P U B L I C  F U N C T I O N S
+    // ###############################
+
+    /// Make a new FileView with an empty, in-memory PieceFile.
+    pub fn empty() -> Result<FileView> {
+        Ok(FileView {
+            path : Option::None,
+            file : PieceFile::empty().unwrap(),
+            cursor_loc : 0,
+            viewport_top : 0,
+            lines : Vec::new(),
+            _should_render : true,
+        })
+    }
+
+    /// Get a reference to the view's PieceFile.
+    pub fn get_file(&self) -> &PieceFile {
+        &self.file
+    }
+
+    /// Move the cursor right one.
+    pub fn move_right(&mut self) {
+        let current = self.cursor_loc;
+        self.cursor_loc = cmp::min(current + 1, self.file.len());
+
+        // TODO: Only need to rerender if the viewport has changed
+        // If only the cursor moves then it's fine
+        self._should_render = true;
+    }
+
+    /// Move the cursor left one.
+    pub fn move_left(&mut self) {
+        let current = self.cursor_loc;
+
+        if current == 0 {
+            return;
+        }
+
+        self.cursor_loc = current - 1;
+
+        self._should_render = true;
+    }
+
     /// Make a new FileView with a predefined path. Does not attempt to open the file
     /// corresponding to the path.  You must call open() on the returned instance to do so.
     pub fn new(path : &str) -> Result<FileView> {
@@ -78,18 +137,6 @@ impl FileView {
         Ok(view)
     }
 
-    /// Make a new FileView with an empty, in-memory PieceFile.
-    pub fn empty() -> Result<FileView> {
-        Ok(FileView {
-            path : Option::None,
-            file : PieceFile::empty().unwrap(),
-            cursor_loc : 0,
-            viewport_top : 0,
-            lines : Vec::new(),
-            _should_render : true,
-        })
-    }
-
     /// Set the cursor's location in the file.
     pub fn set_cursor(&mut self, loc : u64) -> Result<()> {
         self.cursor_loc = cmp::min(loc, self.file.len());
@@ -104,38 +151,6 @@ impl FileView {
         self.viewport_top = cmp::min(line, (self.lines.len() - 1) as u64);
 
         Ok(())
-    }
-
-    /// Calculate the size of the viewport.
-    fn calculate_viewport(&mut self, size : (u16, u16)) -> (u64, u64) {
-        let (rows, cols) = size;
-        let viewport_loc = self.lines[self.viewport_top as usize];
-
-        // We'll come back and add support for multibyte characters
-        // at some point. For the time being I don't feel like 
-        // implementing it.
-        (viewport_loc, cmp::min((rows * cols) as u64, self.file.len()))
-    }
-
-    pub fn move_right(&mut self) {
-        let current = self.cursor_loc;
-        self.cursor_loc = cmp::min(current + 1, self.file.len());
-
-        // TODO: Only need to rerender if the viewport has changed
-        // If only the cursor moves then it's fine
-        self._should_render = true;
-    }
-
-    pub fn move_left(&mut self) {
-        let current = self.cursor_loc;
-
-        if current == 0 {
-            return;
-        }
-
-        self.cursor_loc = current - 1;
-
-        self._should_render = true;
     }
 }
 
