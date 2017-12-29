@@ -179,12 +179,7 @@ impl Keymaster {
             return None
         }
 
-        // Holy shit, Rust.
-        Some(&self.tables
-            .iter()
-            .peekable()
-            .peek()
-            .unwrap())
+        self.tables.last()
     }
 
     /// Handle a key of new user input. 

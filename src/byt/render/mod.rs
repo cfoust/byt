@@ -11,7 +11,7 @@
 use std::io::Result;
 
 // SUBMODULES
-mod terminal;
+pub mod terminal;
 
 // LOCAL INCLUDES
 
@@ -24,7 +24,7 @@ pub struct Point {
 /// Describes a struct that can be rendered in text.
 pub trait Renderable {
     /// Does everything necessary to update the visible contents.
-    fn render(&self, renderer : &Renderer, size : (u16, u16)) -> Result<()>;
+    fn render(&mut self, renderer : &mut Renderer, size : (u16, u16)) -> Result<()>;
 
     /// Whether or not this entity should be rendered on this frame.
     fn should_render(&self) -> bool;
@@ -41,4 +41,16 @@ pub trait Renderer {
 
     /// Get the current size of the rendering context in rows and columns.
     fn size(&mut self) -> Result<(u16, u16)>;
+
+    /// Move the cursor down.
+    fn down(&mut self) -> Result<()>;
+
+    /// Move the cursor right.
+    fn right(&mut self) -> Result<()>;
+
+    /// Move the cursor left.
+    fn left(&mut self) -> Result<()>;
+
+    /// Move the cursor up.
+    fn up(&mut self) -> Result<()>;
 }

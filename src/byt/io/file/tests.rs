@@ -10,7 +10,7 @@ use super::*;
 
 #[test]
 fn it_inserts() {
-    let mut file = empty().unwrap();
+    let mut file = PieceFile::empty().unwrap();
     assert_eq!(file.piece_table.len(), 0);
 
     file.insert("foo", 0);
@@ -40,7 +40,7 @@ fn it_inserts() {
 
 #[test]
 fn it_inserts_inside_piece() {
-    let mut file = empty().unwrap();
+    let mut file = PieceFile::empty().unwrap();
     assert_eq!(file.piece_table.len(), 0);
 
     file.insert("aa", 0);
@@ -75,7 +75,7 @@ fn it_inserts_inside_piece() {
 
 #[test]
 fn it_deletes_inside_piece() {
-    let mut file = empty().unwrap();
+    let mut file = PieceFile::empty().unwrap();
     assert_eq!(file.piece_table.len(), 0);
 
     file.insert("foo", 0);
@@ -100,7 +100,7 @@ fn it_deletes_inside_piece() {
 
 #[test]
 fn it_deletes_across_two_pieces() {
-    let mut file = empty().unwrap();
+    let mut file = PieceFile::empty().unwrap();
     assert_eq!(file.piece_table.len(), 0);
 
     file.insert("bar", 0);
@@ -134,7 +134,7 @@ fn it_deletes_across_two_pieces() {
 
 #[test]
 fn it_deletes_across_three_pieces() {
-    let mut file = empty().unwrap();
+    let mut file = PieceFile::empty().unwrap();
     assert_eq!(file.piece_table.len(), 0);
 
     file.insert("cc", 0);
@@ -163,7 +163,7 @@ fn it_deletes_across_three_pieces() {
 
 #[test]
 fn it_reads_inside_piece() {
-    let mut file = empty().unwrap();
+    let mut file = PieceFile::empty().unwrap();
     assert_eq!(file.piece_table.len(), 0);
 
     file.insert("foobar", 0);
@@ -173,7 +173,7 @@ fn it_reads_inside_piece() {
 
 #[test]
 fn it_reads_across_two_pieces() {
-    let mut file = empty().unwrap();
+    let mut file = PieceFile::empty().unwrap();
     assert_eq!(file.piece_table.len(), 0);
 
     file.insert("bar", 0);
@@ -184,7 +184,7 @@ fn it_reads_across_two_pieces() {
 
 #[test]
 fn it_reads_across_three_pieces() {
-    let mut file = empty().unwrap();
+    let mut file = PieceFile::empty().unwrap();
     assert_eq!(file.piece_table.len(), 0);
 
     file.insert("bar", 0);
@@ -196,8 +196,20 @@ fn it_reads_across_three_pieces() {
 }
 
 #[test]
+fn it_reads_at_offset() {
+    let mut file = PieceFile::empty().unwrap();
+    assert_eq!(file.piece_table.len(), 0);
+
+    file.insert("bar", 0);
+    file.insert("bar", 0);
+
+    let read = file.read_at(1, 3).unwrap();
+    assert_eq!(read.as_str(), "arb");
+}
+
+#[test]
 fn it_undoes_an_insert() {
-    let mut file = empty().unwrap();
+    let mut file = PieceFile::empty().unwrap();
     assert_eq!(file.piece_table.len(), 0);
 
     file.insert("bar", 0);
@@ -208,7 +220,7 @@ fn it_undoes_an_insert() {
 
 #[test]
 fn it_undoes_a_delete_in_a_single_piece() {
-    let mut file = empty().unwrap();
+    let mut file = PieceFile::empty().unwrap();
     assert_eq!(file.piece_table.len(), 0);
 
     file.insert("bar", 0);
@@ -230,7 +242,7 @@ fn it_undoes_a_delete_in_a_single_piece() {
 
 #[test]
 fn it_undoes_a_delete_at_the_end_of_a_single_piece() {
-    let mut file = empty().unwrap();
+    let mut file = PieceFile::empty().unwrap();
     assert_eq!(file.piece_table.len(), 0);
 
     file.insert("bar", 0);
@@ -247,7 +259,7 @@ fn it_undoes_a_delete_at_the_end_of_a_single_piece() {
 
 #[test]
 fn it_undoes_a_delete_at_the_start_of_a_single_piece() {
-    let mut file = empty().unwrap();
+    let mut file = PieceFile::empty().unwrap();
     assert_eq!(file.piece_table.len(), 0);
 
     file.insert("bar", 0);
@@ -264,7 +276,7 @@ fn it_undoes_a_delete_at_the_start_of_a_single_piece() {
 
 #[test]
 fn it_undoes_a_delete_across_two_pieces() {
-    let mut file = empty().unwrap();
+    let mut file = PieceFile::empty().unwrap();
     assert_eq!(file.piece_table.len(), 0);
 
     file.insert("bar", 0);
@@ -280,7 +292,7 @@ fn it_undoes_a_delete_across_two_pieces() {
 
 #[test]
 fn it_undoes_a_delete_across_three_pieces() {
-    let mut file = empty().unwrap();
+    let mut file = PieceFile::empty().unwrap();
     assert_eq!(file.piece_table.len(), 0);
 
     file.insert("bar", 0);
@@ -297,7 +309,7 @@ fn it_undoes_a_delete_across_three_pieces() {
 
 #[test]
 fn it_redoes_an_insert() {
-    let mut file = empty().unwrap();
+    let mut file = PieceFile::empty().unwrap();
     assert_eq!(file.piece_table.len(), 0);
 
     file.insert("bar", 0);
@@ -311,7 +323,7 @@ fn it_redoes_an_insert() {
 
 #[test]
 fn it_redoes_a_delete() {
-    let mut file = empty().unwrap();
+    let mut file = PieceFile::empty().unwrap();
     assert_eq!(file.piece_table.len(), 0);
 
     file.insert("foobar", 0);
@@ -335,7 +347,7 @@ fn it_redoes_a_delete() {
 
 #[test]
 fn it_does_not_panic_after_many_undos() {
-    let mut file = empty().unwrap();
+    let mut file = PieceFile::empty().unwrap();
     assert_eq!(file.piece_table.len(), 0);
 
     file.insert("foobar", 0);
@@ -350,7 +362,7 @@ fn it_does_not_panic_after_many_undos() {
 
 #[test]
 fn it_does_not_panic_after_many_redos() {
-    let mut file = empty().unwrap();
+    let mut file = PieceFile::empty().unwrap();
     assert_eq!(file.piece_table.len(), 0);
 
     file.insert("foobar", 0);
@@ -365,7 +377,7 @@ fn it_does_not_panic_after_many_redos() {
 
 #[test]
 fn it_removes_newer_actions() {
-    let mut file = empty().unwrap();
+    let mut file = PieceFile::empty().unwrap();
     assert_eq!(file.piece_table.len(), 0);
 
     file.insert("foobar", 0);

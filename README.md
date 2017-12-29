@@ -20,12 +20,12 @@ being functional. The roadmap is as follows:
 - [X] Establish a system of interpreting key presses. Want this to be as robust
   as possible, allowing for an arbitrary number of modes and keybindings.
   Default to basic vim-esque bindings.
-- [ ] Define a Renderable trait that can render a window given its boundaries
+- [X] Define a Renderable trait that can render a window given its boundaries
   and and a struct that wraps all of Termion's render operations. This is so
   each pane can only render within its bounds. Trait should have `render()` and
   `should_render()` functions, which are used to render if necessary after
   every event.
-- [ ] Create a FileView that acts as a viewport into a PieceFile. Manages all
+- [X] Create a FileView that acts as a viewport into a PieceFile. Manages all
   aspects of reading, writing, and creating files.
 - [ ] byt should have a system similar to emacs where action identifiers are a
   first-class citizen. All keybindings that correspond to an action really are
@@ -36,6 +36,8 @@ being functional. The roadmap is as follows:
 - [ ] Include Lua for editor extensibility. The MVP is that functions defined
   in Lua can be called from bindings. Also, Lua's functions should have access
   to all of the editor state that Rust-defined functions would.
+- [ ] Pane system sort of akin to vim's. Restrict rendering to a particular
+  area of the screen.
 - [ ] Set up a system of mutations, which optionally attach to the pane or the
   global editing context and provide a combination of binding tables and
   functions.
