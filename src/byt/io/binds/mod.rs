@@ -26,7 +26,7 @@ pub enum Arrow<'a> {
 }
 
 /// The association of a key to some action.
-pub struct Binding<'a> {
+struct Binding<'a> {
     // The key that will yield the result.
     key    : Key,
     // Either an action or a table of new bindings.
@@ -43,7 +43,7 @@ impl<'a> Binding<'a> {
 }
 
 /// A table of bindings.
-pub struct BindingTable<'a> {
+struct BindingTable<'a> {
     bindings : Vec<Binding<'a>>,
     /// Describes what happens when a key matches nothing in the list
     /// of bindings. If `wildcard` is an Arrow, it is invoked with
@@ -112,33 +112,24 @@ impl<'a> BindingTable<'a> {
 
 /// Takes in keys and returns actions or tables.
 pub struct Keymaster<'a> {
-    tables : Vec<BindingTable<'a>>
+    root_table : BindingTable<'a>,
+    current_table : Option<&'a mut BindingTable<'a>>,
 }
 
 impl<'a> Keymaster<'a> {
     // #################################
     // P R I V A T E  F U N C T I O N S
     // #################################
-    /// Pop a table from the table stack.
-    fn pop_table(&mut self) {
-        self.tables.pop();
-    }
 
-    /// Search through the tables in the Keymaster for a binding
-    /// that matches a key. 
-    fn search_key(&mut self, key : Key) -> Option<&'a Arrow> {
-        let mut action : Option<&Arrow> = Option::None;
-
-        // Start from the top of the stack and go down.
-        for table in self.tables.iter().rev() {
-            action = table.search_key(key);
-
-            if action.is_some() {
-                break
-            }
+    /// Get the current state (i.e the current binding table) of
+    /// the Keymaster. If the current table has not been set, it
+    /// will be set to the root table.
+    fn get_state(&mut self) -> &'a mut BindingTable {
+        if self.current_table.is_none() {
+            self.current_table = Option::Some(&mut self.root_table);
         }
 
-        action
+        self.current_table.as_mut().unwrap()
     }
 
     /// Interpret the result of a Arrow enum. If a function
@@ -153,14 +144,33 @@ impl<'a> Keymaster<'a> {
         None
     }
 
+    /// Search through the tables in the Keymaster for a binding
+    /// that matches a key. 
+    fn search_key(&mut self, key : Key) -> Option<&'a Arrow> {
+        let mut action : Option<&Arrow> = Option::None;
+
+        // Start from the top of the stack and go down.
+        //for table in self.tables.iter().rev() {
+            //action = table.search_key(key);
+
+            //if action.is_some() {
+                //break
+            //}
+        //}
+
+        action
+    }
+
     // ###############################
     // P U B L I C  F U N C T I O N S
     // ###############################
+
     /// Create a new Keymaster and return it.
     /// Initially there are nothing in its bindings.
     pub fn new() -> Keymaster<'a> {
         Keymaster {
-            tables : Vec::new()
+            root_table : BindingTable::new(),
+            current_table : Option::None,
         }
     }
 
