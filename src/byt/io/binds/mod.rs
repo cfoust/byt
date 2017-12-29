@@ -7,7 +7,7 @@
 use termion::event::Key;
 
 // SUBMODULES
-mod tests;
+//mod tests;
 
 // LOCAL INCLUDES
 
@@ -77,6 +77,17 @@ impl BindingTable {
     // P U B L I C  F U N C T I O N S
     // ###############################
 
+    /// Add a binding to the table.
+    pub fn add_binding(&mut self, binding : Binding) {
+        self.ensure_unique(binding.key);
+        self.bindings.push(binding);
+    }
+
+    /// Get this BindingTable's unique id.
+    pub fn get_id(&self) -> usize {
+        self.id
+    }
+
     /// Make a new BindingTable without anything in it.
     pub fn new(id : usize) -> BindingTable {
         BindingTable {
@@ -84,17 +95,6 @@ impl BindingTable {
             wildcard : Arrow::Nothing,
             id,
         }
-    }
-
-    /// Add a binding to the table.
-    pub fn add_binding(&mut self, binding : Binding) {
-        self.ensure_unique(binding.key);
-        self.bindings.push(binding);
-    }
-
-    /// Set the wildcard action.
-    pub fn set_wildcard(&mut self, action : Arrow) {
-        self.wildcard = action;
     }
 
     /// Look through the table for any entries that match
@@ -114,6 +114,11 @@ impl BindingTable {
         }
 
         Some(&entry.unwrap().result)
+    }
+
+    /// Set the wildcard action.
+    pub fn set_wildcard(&mut self, action : Arrow) {
+        self.wildcard = action;
     }
 }
 
@@ -159,8 +164,17 @@ impl Keymaster {
     /// was called, return its identifier.
     fn handle_action(&mut self, next : &Arrow) -> Option<String> {
         match *next {
-            Arrow::Function(ref action) => {},
-            Arrow::Table(ref table) => {},
+            Arrow::Function(ref action) => {
+                return Some(action.clone());
+            },
+            // Move to the table's state.
+            Arrow::Table(ref table) => {
+                let id = *table;
+
+                if let Some(_) = self.get_table(id) {
+                    self.current_table = id;
+                }
+            },
             Arrow::Nothing => {}
         }
 
@@ -172,23 +186,6 @@ impl Keymaster {
         self.tables.push(BindingTable::new(self.id_counter));
         self.id_counter += 1;
         self.get_table(self.id_counter - 1).unwrap()
-    }
-
-    /// Search through the tables in the Keymaster for a binding
-    /// that matches a key.
-    fn search_key(&mut self, key : Key) -> Option<&Arrow> {
-        let mut action : Option<&Arrow> = Option::None;
-
-        // Start from the top of the stack and go down.
-        //for table in self.tables.iter().rev() {
-        //action = table.search_key(key);
-
-        //if action.is_some() {
-        //break
-        //}
-        //}
-
-        action
     }
 
     // ###############################
