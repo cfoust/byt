@@ -116,6 +116,27 @@ impl FileView {
         // implementing it.
         (viewport_loc, cmp::min((rows * cols) as u64, self.file.len()))
     }
+
+    pub fn move_right(&mut self) {
+        let current = self.cursor_loc;
+        self.cursor_loc = cmp::min(current + 1, self.file.len());
+
+        // TODO: Only need to rerender if the viewport has changed
+        // If only the cursor moves then it's fine
+        self._should_render = true;
+    }
+
+    pub fn move_left(&mut self) {
+        let current = self.cursor_loc;
+
+        if current == 0 {
+            return;
+        }
+
+        self.cursor_loc = current - 1;
+
+        self._should_render = true;
+    }
 }
 
 impl render::Renderable for FileView {

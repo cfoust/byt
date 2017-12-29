@@ -64,6 +64,16 @@ pub fn init() {
                 io::binds::Action::Function(String::from("render")),
                 ));
 
+        table.add_binding(io::binds::Binding::new(
+                Key::Char('l'),
+                io::binds::Action::Function(String::from("right")),
+                ));
+
+        table.add_binding(io::binds::Binding::new(
+                Key::Char('h'),
+                io::binds::Action::Function(String::from("left")),
+                ));
+
         key_handler.add_table(table);
     }
 
@@ -101,6 +111,14 @@ pub fn init() {
         if let Event::Function(name) = event {
             if name == "quit" {
                 break;
+            }
+
+            if name == "right" {
+                files[0].move_right();
+            }
+
+            if name == "left" {
+                files[0].move_left();
             }
         }
 
