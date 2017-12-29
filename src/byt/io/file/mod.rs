@@ -499,7 +499,8 @@ impl PieceFile {
         self.actions.push(action);
     }
 
-    /// Save the PieceFile's contents to disk.
+    /// Save the PieceFile's contents to disk. Returns
+    /// the number of bytes written.
     pub fn save(&mut self) -> io::Result<(u64)> {
         if self.reader.is_none() {
             return Err(Error::new(ErrorKind::InvalidInput, "Empty PieceFile"));
@@ -512,6 +513,22 @@ impl PieceFile {
         }
 
         let mut file = self.reader.as_ref().unwrap().get_ref();
+        file.write_all(text.as_bytes())?;
+
+        Ok((file.metadata().unwrap().len()))
+    }
+
+    /// Save the PieceFile to disk given a filename. Return the
+    /// number of bytes written.
+    pub fn save_as(&mut self, filename : &str) -> io::Result<(u64)> {
+        let length = self.len();
+        let text   = self.read_at(0, length)?;
+
+        let mut file = OpenOptions::new()
+            .write(true)
+            .create(true)
+            .open(filename).unwrap();
+
         file.write_all(text.as_bytes())?;
 
         Ok((file.metadata().unwrap().len()))
