@@ -11,29 +11,30 @@ mod tests;
 
 // LOCAL INCLUDES
 
-/// Stores a reference to the action identifier or the
-/// next binding table.
-#[derive(Clone)]
-pub enum Action {
-    /// The string referring to a method e.g `next-line`.
-    /// The function will be given the key that was pressed.
+/// Stores some information about what should be done when
+/// the state machine reaches this state. It's called an arrow
+/// because it refers to the next state, even if that involves
+/// sending an action up to the editor as a result.
+pub enum Arrow<'a> {
+    /// Triggers some kind of action within the editor.
+    /// In the future this will be a reference to a closure, probably.
+    /// For now we just use strings for ease of testing.
     Function(String),
-    /// Pop a table of bindings off of the stack.
-    Pop,
+    Table(&'a mut BindingTable<'a>),
     /// Stay in the current table and do nothing.
     Nothing
 }
 
 /// The association of a key to some action.
-pub struct Binding {
+pub struct Binding<'a> {
     // The key that will yield the result.
     key    : Key,
     // Either an action or a table of new bindings.
-    result : Action,
+    result : Arrow<'a>,
 }
 
-impl Binding {
-    pub fn new(key : Key, result : Action) -> Binding {
+impl<'a> Binding<'a> {
+    pub fn new(key : Key, result : Arrow<'a>) -> Binding<'a> {
         Binding {
             key,
             result
@@ -42,15 +43,15 @@ impl Binding {
 }
 
 /// A table of bindings.
-pub struct BindingTable {
-    bindings : Vec<Binding>,
+pub struct BindingTable<'a> {
+    bindings : Vec<Binding<'a>>,
     /// Describes what happens when a key matches nothing in the list
-    /// of bindings.  If `wildcard` is an Action, it is invoked with
+    /// of bindings. If `wildcard` is an Arrow, it is invoked with
     /// the key.
-    wildcard : Action
+    wildcard : Arrow<'a>
 }
 
-impl BindingTable {
+impl<'a> BindingTable<'a> {
     // #################################
     // P R I V A T E  F U N C T I O N S
     // #################################
@@ -71,34 +72,34 @@ impl BindingTable {
     // ###############################
 
     /// Make a new BindingTable without anything in it.
-    pub fn new() -> BindingTable {
+    pub fn new() -> BindingTable<'a> {
         BindingTable {
             bindings : Vec::new(),
-            wildcard : Action::Nothing
+            wildcard : Arrow::Nothing
         }
     }
 
     /// Add a binding to the table.
-    pub fn add_binding(&mut self, binding : Binding) {
+    pub fn add_binding(&mut self, binding : Binding<'a>) {
         self.ensure_unique(binding.key);
         self.bindings.push(binding);
     }
 
     /// Set the wildcard action.
-    pub fn set_wildcard(&mut self, action : Action) {
+    pub fn set_wildcard(&mut self, action : Arrow<'a>) {
         self.wildcard = action;
     }
 
     /// Look through the table for any entries that match
     /// the given key or the wildcard otherwise. Return
     /// that key's action if so.
-    pub fn search_key(&self, key : Key) -> Option<&Action> {
+    pub fn search_key(&self, key : Key) -> Option<&'a Arrow> {
         let entry = self.bindings
             .iter()
             .find(|ref x| x.key == key);
 
         if entry.is_none() {
-            if let Action::Nothing = self.wildcard {
+            if let Arrow::Nothing = self.wildcard {
                 return None
             }
 
@@ -110,11 +111,11 @@ impl BindingTable {
 }
 
 /// Takes in keys and returns actions or tables.
-pub struct Keymaster {
-    tables : Vec<BindingTable>
+pub struct Keymaster<'a> {
+    tables : Vec<BindingTable<'a>>
 }
 
-impl Keymaster {
+impl<'a> Keymaster<'a> {
     // #################################
     // P R I V A T E  F U N C T I O N S
     // #################################
@@ -125,8 +126,8 @@ impl Keymaster {
 
     /// Search through the tables in the Keymaster for a binding
     /// that matches a key. 
-    fn search_key(&mut self, key : Key) -> Option<&Action> {
-        let mut action : Option<&Action> = Option::None;
+    fn search_key(&mut self, key : Key) -> Option<&'a Arrow> {
+        let mut action : Option<&Arrow> = Option::None;
 
         // Start from the top of the stack and go down.
         for table in self.tables.iter().rev() {
@@ -140,18 +141,13 @@ impl Keymaster {
         action
     }
 
-    /// Interpret the result of a Action enum. If a function
+    /// Interpret the result of a Arrow enum. If a function
     /// was called, return its identifier.
-    fn handle_action(&mut self, next : &Action) -> Option<String> {
+    fn handle_action(&mut self, next : &Arrow) -> Option<String> {
         match *next {
-            Action::Function(ref action) => {
-                // TODO: Fix this shitty string clone
-                return Some(action.clone());
-            },
-            Action::Pop => {
-                self.pop_table();
-            },
-            Action::Nothing => {}
+            Arrow::Function(ref action) => {},
+            Arrow::Table(ref table) => {},
+            Arrow::Nothing => {}
         }
 
         None
@@ -162,39 +158,15 @@ impl Keymaster {
     // ###############################
     /// Create a new Keymaster and return it.
     /// Initially there are nothing in its bindings.
-    pub fn new() -> Keymaster {
+    pub fn new() -> Keymaster<'a> {
         Keymaster {
             tables : Vec::new()
         }
     }
 
-    /// Add a table of bindings to the Keymaster.
-    pub fn add_table(&mut self, table : BindingTable) {
-        self.tables.push(table);
-    }
-
-    /// Get a mutable reference to the table on the top of the stack.
-    pub fn peek_table(&self) -> Option<&BindingTable> {
-        if self.tables.len() == 0 {
-            return None
-        }
-
-        self.tables.last()
-    }
-
     /// Handle a key of new user input. 
     pub fn consume(&mut self, key : Key) -> Option<String> {
-        let mut action : Action = Action::Nothing;
-
-        {
-            let result = self.search_key(key);
-
-            if result.is_none() {
-                return None;
-            }
-
-            action = result.unwrap().clone();
-        }
+        let mut action : Arrow = Arrow::Nothing;
 
         return self.handle_action(&action);
     }

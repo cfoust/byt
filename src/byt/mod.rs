@@ -51,32 +51,6 @@ pub fn init() {
 
     let mut key_handler = io::binds::Keymaster::new();
 
-    {
-        let mut table = io::binds::BindingTable::new();
-
-        table.add_binding(io::binds::Binding::new(
-                Key::Char('q'),
-                io::binds::Action::Function(String::from("quit")),
-                ));
-
-        table.add_binding(io::binds::Binding::new(
-                Key::Char('a'),
-                io::binds::Action::Function(String::from("render")),
-                ));
-
-        table.add_binding(io::binds::Binding::new(
-                Key::Char('l'),
-                io::binds::Action::Function(String::from("right")),
-                ));
-
-        table.add_binding(io::binds::Binding::new(
-                Key::Char('h'),
-                io::binds::Action::Function(String::from("left")),
-                ));
-
-        key_handler.add_table(table);
-    }
-
     // One thread just reads from user input and makes
     // events from whatever it gets.
     let key_sender = sender.clone();
