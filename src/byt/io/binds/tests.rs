@@ -6,32 +6,29 @@ use super::*;
 mod tables {
     use super::*;
 
-    //#[test]
-    //fn it_returns_no_empty_wildcard() {
-        //let mut table = BindingTable::new();
-        //assert!(table.search_key(Key::Char('b')).is_none());
-    //}
+    #[test]
+    fn it_returns_no_empty_wildcard() {
+        let mut table = BindingTable::new(0);
+        assert!(table.search_key(Key::Char('b')).is_none());
+    }
 
-    //#[test]
-    //fn it_returns_the_wildcard() {
-        //let mut table = BindingTable::new();
+    #[test]
+    fn it_returns_the_wildcard() {
+        let mut table = BindingTable::new(0);
 
-        //table.set_wildcard(Action::Function(String::from("foobar")));
+        table.set_wildcard(Arrow::Function(String::from("foobar")));
 
-        //assert!(table.search_key(Key::Char('b')).is_some());
-    //}
+        assert!(table.search_key(Key::Char('b')).is_some());
+    }
 
-    //#[test]
-    //fn it_finds_a_binding() {
-        //let mut table = BindingTable::new();
+    #[test]
+    fn it_finds_a_binding() {
+        let mut table = BindingTable::new(0);
 
-        //table.add_binding(Binding {
-            //key : Key::Char('a'),
-            //result : Action::Nothing
-        //});
+        table.bind(Key::Char('a'), Arrow::Nothing);
 
-        //assert!(table.search_key(Key::Char('a')).is_some());
-    //}
+        assert!(table.search_key(Key::Char('a')).is_some());
+    }
 }
 
 #[test]
@@ -57,10 +54,13 @@ fn it_finds_a_wildcard() {
 }
 
 #[test]
+/// Ensure that the Keymaster creates all of the tables as necessary
+/// and then responds to input that uses them properly when using
+/// the make_prefix function.
 fn it_handles_depth() {
     let mut master = Keymaster::new();
 
-    let id = master.make_table([Key::Char('b'), Key::Char('a')]).unwrap();
+    let id = master.make_prefix([Key::Char('b'), Key::Char('a')]).unwrap();
 
     assert_eq!(master.tables.len(), 2);
 

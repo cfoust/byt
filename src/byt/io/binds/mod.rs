@@ -287,7 +287,7 @@ impl Keymaster {
     /// If you give this function a slice consisting of just Key::Char('a')
     /// and add a binding to the returned table, you can use that binding
     /// by typing 'a' then that binding.
-    pub fn make_table<T: AsRef<[Key]>>(&mut self, prefix : T) 
+    pub fn make_prefix<T: AsRef<[Key]>>(&mut self, prefix : T) 
         -> io::Result<usize> 
     {
         // The id of the table that does not have the prefix
