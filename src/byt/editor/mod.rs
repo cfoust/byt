@@ -63,8 +63,16 @@ impl Editor {
         }
     }
 
+    /// Get the file that's currently open.
     pub fn current_file(&mut self) -> Option<&mut FileView> {
         self.files.get_mut(self.current_file)
+    }
+
+    /// Attempt to open a file and make it the current pane.
+    pub fn open(&mut self, path : &str) -> io::Result<()> {
+        self.files.push(FileView::new(path)?);
+        self.current_file = self.files.len() - 1;
+        Ok(())
     }
 }
 
@@ -81,7 +89,8 @@ impl render::Renderable for Editor {
     }
 
     fn should_render(&self) -> bool {
-        self.should_render
+        // TODO This is dangerous. Fix this.
+        self.files[self.current_file].should_render()
     }
 }
 

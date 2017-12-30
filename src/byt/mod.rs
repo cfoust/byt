@@ -54,6 +54,8 @@ pub fn init() {
 
     let mut editor = editor::Editor::new();
 
+    editor.open("README.md");
+
     // One thread just reads from user input and makes
     // events from whatever it gets.
     let key_sender = sender.clone();
@@ -71,6 +73,11 @@ pub fn init() {
         let sender = sender.clone();
 
         if let Event::KeyPress(key) = event {
+            // Just for now while I mess with other things
+            if key == Key::Char('q') {
+                break;
+            }
+
             let result = editor.consume(key);
 
             if result.is_none() {
@@ -81,30 +88,21 @@ pub fn init() {
             sender.send(Event::Function(action));
         }
 
-        //// Check if we should render
-        //let mut should_render = false;
-        //for file in files.iter() {
-            //should_render = should_render || file.should_render();
-        //}
+        // Check if we should render
+        if !editor.should_render() {
+            continue;
+        }
 
-        //if !should_render {
-            //continue;
-        //}
+        let size = termion::terminal_size().unwrap();
 
-        //let size = termion::terminal_size().unwrap();
+        // Clear the screen before rendering
+        write!(screen, "{}", termion::clear::All);
 
-        //// Clear the screen before rendering
-        //write!(screen, "{}", termion::clear::All);
+        {
+            let mut renderer = render::terminal::TermRenderer::new(&mut screen);
+            editor.render(&mut renderer, size);
+        }
 
-        //for file in files.iter_mut() {
-            //if !file.should_render() {
-                //continue;
-            //}
-
-            //let mut renderer = render::terminal::TermRenderer::new(&mut screen);
-            //file.render(&mut renderer, size);
-        //}
-
-        //screen.flush().unwrap();
+        screen.flush().unwrap();
     }
 }
