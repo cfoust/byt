@@ -249,10 +249,10 @@ impl Keymaster {
         self.get_table_by_id(0).unwrap()
     }
 
-    /// Get a binding table according to a sequence of keys, which
+    /// Get a binding table according to a prefix of keys, which
     /// are evaluated starting at the root. Will only return Some
     /// if the keys evaluate to a state that is a table.
-    pub fn get_table<T: AsRef<[Key]>>(&mut self, sequence : T) -> Option<&mut BindingTable> {
+    pub fn get_prefix<T: AsRef<[Key]>>(&mut self, sequence : T) -> Option<&mut BindingTable> {
         let mut id = 0;
 
         for key in sequence.as_ref().iter() {
