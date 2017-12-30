@@ -5,12 +5,14 @@
 
 // LIBRARY INCLUDES
 use termion::event::Key;
+use std::io;
 
 // SUBMODULES
 
 // LOCAL INCLUDES
 use byt::views::file::FileView;
 use byt::io::binds::{Keymaster, KeyInput};
+use byt::render;
 
 #[derive(Clone, PartialEq, Debug)]
 /// Represents a mutation of the editing state. Actions are guaranteed to execute in order, with
@@ -45,6 +47,9 @@ pub struct Editor {
     /// Stores any action that we've generated but hasn't
     /// been consumed yet.
     actions : Vec<Action>,
+
+    /// Whether or not we should render at the next opportunity.
+    should_render : bool,
 }
 
 impl Editor {
@@ -53,6 +58,7 @@ impl Editor {
             files : Vec::new(),
             keys  : Keymaster::new(),
             current_file : 0,
+            should_render : false,
             actions : Vec::new(),
         }
     }
@@ -66,6 +72,16 @@ impl KeyInput for Editor {
     fn consume(&mut self, key : Key) -> Option<()> {
         // TODO: do it pane-locally first
         self.keys.consume(key)
+    }
+}
+
+impl render::Renderable for Editor {
+    fn render(&mut self, renderer : &mut render::Renderer, size : (u16, u16)) -> io::Result<()> {
+        self.current_file().unwrap().render(renderer, size)
+    }
+
+    fn should_render(&self) -> bool {
+        self.should_render
     }
 }
 
