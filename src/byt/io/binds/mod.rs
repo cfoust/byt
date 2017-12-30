@@ -233,6 +233,18 @@ impl Keymaster {
     // P U B L I C  F U N C T I O N S
     // ###############################
 
+    /// Bind some an action to a key sequence. Intermediate binding
+    /// tables are created automatically. Will return Err if the sequence
+    /// does not resolve to a table that can be created. This might happen
+    /// if you try to bind `Ctrl+a b` to something and `Ctrl+a` is already
+    /// bound to something that's not a table.
+    pub fn bind<T: AsRef<[Key]>>(&mut self, sequence : T, action : Arrow) -> io::Result<()> {
+        let sequence       = sequence.as_ref();
+        let (prefix, last) = sequence.split_at(sequence.len() - 1);
+        let table          = self.make_prefix(sequence)?;
+
+        self.get_table_by_id(table).unwrap().bind(last[0], action)
+    }
 
     /// Get an arrow (a binding) from a sequence of keys.
     /// We say `arrow` here because this might not be a "leaf node",
