@@ -15,7 +15,7 @@ use std::io;
 mod tests;
 
 // LOCAL INCLUDES
-use byt::editor::Action;
+use byt::editor::{Action, Actionable};
 
 /// Acts as a transition arrow between states of the state machine.
 #[derive(Clone, PartialEq, Debug)]
@@ -33,6 +33,13 @@ enum Arrow {
 
     /// Stay in the current table and do nothing.
     Nothing
+}
+
+pub trait KeyInput {
+    /// Handle a key of new user input. If the key got consumed
+    /// (i.e resulted in a state transition of some sort) then
+    /// this method will return Some.
+    fn consume(&mut self, key : Key) -> Option<()>;
 }
 
 /// The association of a key to some action.
@@ -226,28 +233,6 @@ impl Keymaster {
     // P U B L I C  F U N C T I O N S
     // ###############################
 
-    /// Handle a key of new user input. If the key got consumed
-    /// (i.e resulted in a state transition of some sort) then
-    /// this method will return Some.
-    pub fn consume(&mut self, key : Key) -> Option<()> {
-        let mut action : Arrow;
-
-        // I kind of hate the fact that I have to clone
-        // the result, but it's a product of Rust's sensible
-        // rules wherein you can't have multiple mutable/immutable
-        // references at once.
-        {
-            let result = self.search_key(key);
-
-            if result.is_none() {
-                return None
-            }
-
-            action = (*result.unwrap()).clone();
-        }
-
-        self.handle_action(&action)
-    }
 
     /// Get an arrow (a binding) from a sequence of keys.
     /// We say `arrow` here because this might not be a "leaf node",
@@ -388,5 +373,27 @@ impl Keymaster {
             id_counter : 1,
             actions : Vec::new()
         }
+    }
+}
+
+impl KeyInput for Keymaster {
+    fn consume(&mut self, key : Key) -> Option<()> {
+        let mut action : Arrow;
+
+        // I kind of hate the fact that I have to clone
+        // the result, but it's a product of Rust's sensible
+        // rules wherein you can't have multiple mutable/immutable
+        // references at once.
+        {
+            let result = self.search_key(key);
+
+            if result.is_none() {
+                return None
+            }
+
+            action = (*result.unwrap()).clone();
+        }
+
+        self.handle_action(&action)
     }
 }

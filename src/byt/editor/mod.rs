@@ -10,20 +10,36 @@ use termion::event::Key;
 
 // LOCAL INCLUDES
 use byt::views::file::FileView;
-use byt::io::binds::Keymaster;
+use byt::io::binds::{Keymaster, KeyInput};
 
 #[derive(Clone, PartialEq, Debug)]
+/// Represents a mutation of the editing state. Actions are guaranteed to execute in order, with
+/// actions emitted in the editor as a whole taking precedence over those emitted in individual
+/// panes.
 pub struct Action {
 }
 
+/// Allows for the entity to produce Actions to be executed. 
+/// Similar to rendering, actions are 
+pub trait Actionable {
+    /// Pop an action off of the action stack.
+    fn grab_action(&mut self) -> Option<Action>;
+
+    /// Check whether there is an action that can be handled.
+    fn has_action(&self) -> bool;
+}
+
+/// Contains all editor state, responds to user input, and
+/// renders appropriately. 
 pub struct Editor {
-    /// Akin to vim's buffers. All the open files in the editor.
+    /// Akin to vim's buffers. All of the open files in the editor.
     files : Vec<FileView>,
 
     /// Stores all of the global keybindings.
     keys : Keymaster,
 
-    /// The index of the current file.
+    /// The index of the current file inside self.files. In the future
+    /// this will be a bit more elegant, but it's fine for the time being.
     current_file : usize,
 
     /// Stores any action that we've generated but hasn't
@@ -41,19 +57,26 @@ impl Editor {
         }
     }
 
-    /// Consume a key of input.
-    pub fn consume(&mut self, key : Key) -> Option<()> {
+    pub fn current_file(&mut self) -> Option<&mut FileView> {
+        self.files.get_mut(self.current_file)
+    }
+}
+
+impl KeyInput for Editor {
+    fn consume(&mut self, key : Key) -> Option<()> {
         // TODO: do it pane-locally first
         self.keys.consume(key)
     }
+}
 
+impl Actionable for Editor {
     /// Pop an action off the stack.
-    pub fn grab_action(&mut self) -> Option<Action> {
+    fn grab_action(&mut self) -> Option<Action> {
         self.actions.pop()
     }
 
     /// Check whether there is an action to be consumed.
-    pub fn has_action(&self) -> bool {
+    fn has_action(&self) -> bool {
         self.actions.len() > 0
     }
 }

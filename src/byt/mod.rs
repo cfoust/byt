@@ -27,7 +27,8 @@ mod render;
 mod views;
 
 // LOCAL INCLUDES
-use byt::editor::Action;
+use byt::editor::{Action, Actionable};
+use byt::io::binds::KeyInput;
 use byt::io::file;
 use byt::render::Renderable;
 use self::events::*;
