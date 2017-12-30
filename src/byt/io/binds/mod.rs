@@ -12,7 +12,7 @@ use std::io::{
 use std::io;
 
 // SUBMODULES
-//mod tests;
+mod tests;
 
 // LOCAL INCLUDES
 
@@ -20,7 +20,7 @@ use std::io;
 /// the state machine reaches this state. It's called an arrow
 /// because it refers to the next state, even if that involves
 /// sending an action up to the editor as a result.
-#[derive(Clone)]
+#[derive(Clone, PartialEq, Debug)]
 enum Arrow {
     /// Triggers some kind of action within the editor.
     /// In the future this will be a reference to a closure, probably.
@@ -95,7 +95,7 @@ impl BindingTable {
     // ###############################
 
     /// Bind some an action to a key.
-    pub fn bind(&mut self, key : Key, action : &Arrow)
+    pub fn bind(&mut self, key : Key, action : Arrow)
         -> io::Result<()> {
         self.ensure_unique(key)?;
 
@@ -292,8 +292,8 @@ impl Keymaster {
     {
         // The id of the table that does not have the prefix
         // binding.
-        let mut max_id = 0;
-        let mut max_index = 0;
+        let mut max_id      = 0;
+        let mut max_index   = 0;
         let mut should_make = false;
 
         // We need to find where we need to start making tables.
@@ -331,11 +331,10 @@ impl Keymaster {
             for key in rest.iter() {
                 // jenni is a qt and I am so tired of working on this
                 let mut table = self.get_table_by_id(last).unwrap();
-                let arrow = Arrow::Table(current);
-                table.bind(*key, &arrow);
+                table.bind(*key, Arrow::Table(current));
 
-                current += 1;
-                last     = current;
+                last    = current;
+                current = last + 1;
             }
 
             max_id = last;
