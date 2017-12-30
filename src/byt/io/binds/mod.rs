@@ -16,10 +16,7 @@ mod tests;
 
 // LOCAL INCLUDES
 
-/// Stores some information about what should be done when
-/// the state machine reaches this state. It's called an arrow
-/// because it refers to the next state, even if that involves
-/// sending an action up to the editor as a result.
+/// Acts as a transition arrow between states of the state machine. 
 #[derive(Clone, PartialEq, Debug)]
 enum Arrow {
     /// Triggers some kind of action within the editor.
