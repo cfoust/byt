@@ -244,9 +244,19 @@ impl Keymaster {
         return self.handle_action(&action);
     }
 
-    /// Get the root binding table.
-    pub fn get_root(&mut self) -> &mut BindingTable {
-        self.get_table_by_id(0).unwrap()
+    /// Get an arrow (a binding) from a sequence of keys.
+    /// We say `arrow` here because this might not be a "leaf node",
+    /// or an action that results in returning to the root table.
+    pub fn get_arrow<T: AsRef<[Key]>>(&mut self, sequence : T) -> Option<&Arrow> {
+        let sequence       = sequence.as_ref();
+        let (prefix, last) = sequence.split_at(sequence.len() - 1);
+        let table          = self.get_prefix(prefix);
+
+        if table.is_none() {
+            return None;
+        }
+
+        table.unwrap().search_key(last[0])
     }
 
     /// Get a binding table according to a prefix of keys, which
@@ -278,6 +288,11 @@ impl Keymaster {
         }
 
         self.get_table_by_id(id)
+    }
+
+    /// Get the root binding table.
+    pub fn get_root(&mut self) -> &mut BindingTable {
+        self.get_table_by_id(0).unwrap()
     }
 
     /// Make a new table at the end of a prefix of keys. If the arrows
