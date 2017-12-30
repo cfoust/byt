@@ -20,15 +20,17 @@ use termion::screen::AlternateScreen;
 use termion;
 
 // SUBMODULES
+mod editor;
 mod events;
 mod io;
 mod render;
 mod views;
 
 // LOCAL INCLUDES
-use self::events::*;
-use byt::render::Renderable;
+use byt::editor::Action;
 use byt::io::file;
+use byt::render::Renderable;
+use self::events::*;
 
 /// Initialize and start byt.
 pub fn init() {
@@ -49,7 +51,7 @@ pub fn init() {
 
     let (sender, receiver) = channel::<Event>();
 
-    let mut key_handler = io::binds::Keymaster::new();
+    let mut editor = editor::Editor::new();
 
     // One thread just reads from user input and makes
     // events from whatever it gets.
@@ -63,63 +65,44 @@ pub fn init() {
         }
     });
 
-    let mut view = views::file::FileView::new("README.md").unwrap();
-
-    let mut files = Vec::new();
-    files.push(view);
-
     loop {
         let event = receiver.recv().unwrap();
         let sender = sender.clone();
 
         if let Event::KeyPress(key) = event {
-            let result = key_handler.consume(key);
+            let result = editor.consume(key);
 
             if result.is_none() {
                 continue;
             }
 
-            sender.send(Event::Function(result.unwrap()));
+            sender.send(Event::Function(editor.grab_action().unwrap()));
         }
 
-        if let Event::Function(name) = event {
-            if name == "quit" {
-                break;
-            }
+        //// Check if we should render
+        //let mut should_render = false;
+        //for file in files.iter() {
+            //should_render = should_render || file.should_render();
+        //}
 
-            if name == "right" {
-                files[0].move_right();
-            }
+        //if !should_render {
+            //continue;
+        //}
 
-            if name == "left" {
-                files[0].move_left();
-            }
-        }
+        //let size = termion::terminal_size().unwrap();
 
-        // Check if we should render
-        let mut should_render = false;
-        for file in files.iter() {
-            should_render = should_render || file.should_render();
-        }
+        //// Clear the screen before rendering
+        //write!(screen, "{}", termion::clear::All);
 
-        if !should_render {
-            continue;
-        }
+        //for file in files.iter_mut() {
+            //if !file.should_render() {
+                //continue;
+            //}
 
-        let size = termion::terminal_size().unwrap();
+            //let mut renderer = render::terminal::TermRenderer::new(&mut screen);
+            //file.render(&mut renderer, size);
+        //}
 
-        // Clear the screen before rendering
-        write!(screen, "{}", termion::clear::All);
-
-        for file in files.iter_mut() {
-            if !file.should_render() {
-                continue;
-            }
-
-            let mut renderer = render::terminal::TermRenderer::new(&mut screen);
-            file.render(&mut renderer, size);
-        }
-
-        screen.flush().unwrap();
+        //screen.flush().unwrap();
     }
 }

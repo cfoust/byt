@@ -15,9 +15,12 @@ use std::io::SeekFrom;
 // SUBMODULES
 
 // LOCAL INCLUDES
+use byt::io::binds::Keymaster;
 use byt::io::file::PieceFile;
 use byt::render;
 
+/// Analogous to a buffer in vim. Offers abstractions
+/// over byt's PieceFile type.
 pub struct FileView {
     /// The path to the file this FileView references.
     path : Option<String>,
@@ -37,6 +40,10 @@ pub struct FileView {
     /// Whether or not this view should be rendered after
     /// the next event.
     _should_render : bool,
+
+    /// Stores and interprets keybindings for this buffer
+    /// in particular.
+    keys : Keymaster,
 }
 
 impl FileView {
@@ -89,6 +96,7 @@ impl FileView {
             viewport_top : 0,
             lines : Vec::new(),
             _should_render : true,
+            keys  : Keymaster::new(),
         })
     }
 
@@ -130,6 +138,7 @@ impl FileView {
             viewport_top : 0,
             lines : Vec::new(),
             _should_render : true,
+            keys  : Keymaster::new(),
         };
 
         view.regenerate_lines();
