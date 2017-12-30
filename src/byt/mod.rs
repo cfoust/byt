@@ -76,7 +76,8 @@ pub fn init() {
                 continue;
             }
 
-            sender.send(Event::Function(editor.grab_action().unwrap()));
+            let action = editor.grab_action().unwrap();
+            sender.send(Event::Function(action));
         }
 
         //// Check if we should render
