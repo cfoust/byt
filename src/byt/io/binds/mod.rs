@@ -102,14 +102,31 @@ impl BindingTable {
     /// Bind some an action to a key.
     pub fn bind(&mut self, key : Key, action : Arrow)
         -> io::Result<()> {
-        self.ensure_unique(key)?;
+            self.ensure_unique(key)?;
 
-        self.bindings.push(Binding {
-            key,
-            result : action.clone()
-        });
+            self.bindings.push(Binding {
+                key,
+                result : action.clone()
+            });
+
+            Ok(())
+        }
+
+    /// Remove a binding from the table.
+    pub fn unbind(&mut self, key : Key) -> io::Result<()> {
+        let index = self.bindings
+            .iter()
+            .position(|val| key == val.key)
+            .unwrap();
+
+        self.bindings.remove(index);
 
         Ok(())
+    }
+
+    /// Get the number of bindings in this table.
+    pub fn len(&self) -> usize {
+        self.bindings.len()
     }
 
     /// Make a new BindingTable without anything in it.
@@ -172,6 +189,37 @@ impl Keymaster {
     // P R I V A T E  F U N C T I O N S
     // #################################
 
+    /// Get a binding table according to a prefix of keys, which
+    /// are evaluated starting at the root. Will only return Some
+    /// if the keys evaluate to a state that is a table.
+    fn get_prefix<T: AsRef<[Key]>>(&mut self, sequence : T) -> Option<&mut BindingTable> {
+        let mut id = 0;
+
+        for key in sequence.as_ref().iter() {
+            let mut table = self.get_table_by_id(id).unwrap();
+            let binding = table.search_key(*key);
+
+            if binding.is_none() {
+                return None;
+            }
+
+            match *binding.unwrap() {
+                Arrow::Table(ref index) => {
+                    id = *index;
+                },
+                _ => {
+                    return None;
+                }
+            }
+        }
+
+        if id == 0 {
+            return None;
+        }
+
+        self.get_table_by_id(id)
+    }
+
     /// Get the current state (i.e the current binding table) of
     /// the Keymaster. If the current table has not been set, it
     /// will be set to the root table.
@@ -215,6 +263,71 @@ impl Keymaster {
         Some(())
     }
 
+    /// Make a new table at the end of a prefix of keys. If the arrows
+    /// to reach this table from the root do not already exist, they
+    /// will be created.
+    ///
+    /// If you give this function a slice consisting of just Key::Char('a')
+    /// and add a binding to the returned table, you can use that binding
+    /// by typing 'a' then that binding.
+    /// Returns the usize id of the table in this Keymaster, which you
+    /// can query for with get_table_by_id().
+    fn make_prefix<T: AsRef<[Key]>>(&mut self, prefix : T)
+        -> io::Result<usize>
+        {
+            // The id of the table that does not have the prefix
+            // binding.
+            let mut max_id      = 0;
+            let mut max_index   = 0;
+            let mut should_make = false;
+
+            // We need to find where we need to start making tables.
+
+            for key in prefix.as_ref().iter() {
+                let mut table = self.get_table_by_id(max_id).unwrap();
+                let binding = table.search_key(*key);
+
+                if binding.is_none() {
+                    should_make = true;
+                    break;
+                }
+
+                match *binding.unwrap() {
+                    Arrow::Table(ref index) => {
+                        max_id = *index;
+                    },
+                    _ => {
+                        return Err(Error::new(ErrorKind::InvalidInput, "Binding already exists"));
+                    }
+                }
+
+                max_index += 1;
+            }
+
+            if should_make {
+                let (_, rest)   = prefix.as_ref().split_at(max_index);
+                let mut last    = max_id;
+                let mut current = self.id_counter;
+
+                for key in rest.iter() {
+                    self.new_table();
+                }
+
+                for key in rest.iter() {
+                    // jenni is a qt and I am so tired of working on this
+                    let mut table = self.get_table_by_id(last).unwrap();
+                    table.bind(*key, Arrow::Table(current));
+
+                    last    = current;
+                    current = last + 1;
+                }
+
+                max_id = last;
+            }
+
+            Ok(max_id)
+        }
+
     /// Make a new table with an assigned id.
     fn new_table(&mut self) -> &mut BindingTable {
         let id = self.id_counter;
@@ -241,9 +354,45 @@ impl Keymaster {
     pub fn bind<T: AsRef<[Key]>>(&mut self, sequence : T, action : Arrow) -> io::Result<()> {
         let sequence       = sequence.as_ref();
         let (prefix, last) = sequence.split_at(sequence.len() - 1);
-        let table          = self.make_prefix(sequence)?;
+        let table          = self.make_prefix(prefix)?;
 
         self.get_table_by_id(table).unwrap().bind(last[0], action)
+    }
+
+    /// Remove the action and any tables that reference it. Any of the action's
+    /// parents back to the root table will be destroyed if they only contained
+    /// this binding.
+    pub fn unbind<T: AsRef<[Key]>>(&mut self, sequence : T) -> io::Result<()> {
+        let sequence       = sequence.as_ref();
+
+        for start_index in (0..sequence.len()).rev() {
+            let (prefix, _) = sequence.split_at(start_index);
+            let key         = sequence[start_index];
+
+            // If the prefix doesn't have any keys, we have to use
+            // the root table instead.
+            let table       = if prefix.len() > 0 {
+                self.get_prefix(prefix)
+            } else {
+                Option::Some(self.get_root())
+            };
+
+            if table.is_none() {
+                return Err(Error::new(ErrorKind::InvalidInput, "Table not found for sequence"));
+            }
+
+            let table = table.unwrap();
+
+            table.unbind(key);
+
+            // Don't continue messing with tables and deleting
+            // references if they contain other things.
+            if table.len() > 0 {
+                break;
+            }
+        }
+
+        Ok(())
     }
 
     /// Get an arrow (a binding) from a sequence of keys.
@@ -261,37 +410,6 @@ impl Keymaster {
         table.unwrap().search_key(last[0])
     }
 
-    /// Get a binding table according to a prefix of keys, which
-    /// are evaluated starting at the root. Will only return Some
-    /// if the keys evaluate to a state that is a table.
-    pub fn get_prefix<T: AsRef<[Key]>>(&mut self, sequence : T) -> Option<&mut BindingTable> {
-        let mut id = 0;
-
-        for key in sequence.as_ref().iter() {
-            let mut table = self.get_table_by_id(id).unwrap();
-            let binding = table.search_key(*key);
-
-            if binding.is_none() {
-                return None;
-            }
-
-            match *binding.unwrap() {
-                Arrow::Table(ref index) => {
-                    id = *index;
-                },
-                _ => {
-                    return None;
-                }
-            }
-        }
-
-        if id == 0 {
-            return None;
-        }
-
-        self.get_table_by_id(id)
-    }
-
     /// Get the root binding table.
     pub fn get_root(&mut self) -> &mut BindingTable {
         self.get_table_by_id(0).unwrap()
@@ -307,68 +425,6 @@ impl Keymaster {
         self.actions.len() > 0
     }
 
-    /// Make a new table at the end of a prefix of keys. If the arrows
-    /// to reach this table from the root do not already exist, they
-    /// will be created.
-    ///
-    /// If you give this function a slice consisting of just Key::Char('a')
-    /// and add a binding to the returned table, you can use that binding
-    /// by typing 'a' then that binding.
-    pub fn make_prefix<T: AsRef<[Key]>>(&mut self, prefix : T)
-        -> io::Result<usize>
-    {
-        // The id of the table that does not have the prefix
-        // binding.
-        let mut max_id      = 0;
-        let mut max_index   = 0;
-        let mut should_make = false;
-
-        // We need to find where we need to start making tables.
-
-        for key in prefix.as_ref().iter() {
-            let mut table = self.get_table_by_id(max_id).unwrap();
-            let binding = table.search_key(*key);
-
-            if binding.is_none() {
-                should_make = true;
-                break;
-            }
-
-            match *binding.unwrap() {
-                Arrow::Table(ref index) => {
-                    max_id = *index;
-                },
-                _ => {
-                    return Err(Error::new(ErrorKind::InvalidInput, "Binding already exists"));
-                }
-            }
-
-            max_index += 1;
-        }
-
-        if should_make {
-            let (_, rest)   = prefix.as_ref().split_at(max_index);
-            let mut last    = max_id;
-            let mut current = self.id_counter;
-
-            for key in rest.iter() {
-                self.new_table();
-            }
-
-            for key in rest.iter() {
-                // jenni is a qt and I am so tired of working on this
-                let mut table = self.get_table_by_id(last).unwrap();
-                table.bind(*key, Arrow::Table(current));
-
-                last    = current;
-                current = last + 1;
-            }
-
-            max_id = last;
-        }
-
-        Ok(max_id)
-    }
 
     /// Return to the initial (root) state.
     pub fn to_root(&mut self) {

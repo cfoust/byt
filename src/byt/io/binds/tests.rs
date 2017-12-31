@@ -16,7 +16,7 @@ mod tables {
     fn it_returns_the_wildcard() {
         let mut table = BindingTable::new(0);
 
-        table.set_wildcard(Arrow::Function(String::from("foobar")));
+        table.set_wildcard(Arrow::Function(Action {}));
 
         assert!(table.search_key(Key::Char('b')).is_some());
     }
@@ -48,9 +48,34 @@ fn it_finds_a_wildcard() {
 
     master
         .get_root()
-        .set_wildcard(Arrow::Function(String::from("foobar")));
+        .set_wildcard(Arrow::Function(Action {}));
 
     assert!(master.search_key(Key::Char('a')).is_some());
+}
+
+#[test]
+fn it_binds_a_sequence() {
+    let mut master = Keymaster::new();
+    let seq = [Key::Char('b'), Key::Char('a'), Key::Char('r')];
+
+    master.bind(seq, Arrow::Table(0));
+
+    assert!(master.consume(Key::Char('b')).is_some());
+    assert!(master.consume(Key::Char('a')).is_some());
+    assert!(master.consume(Key::Char('r')).is_some());
+}
+
+#[test]
+fn it_unbinds_a_sequence() {
+    let mut master = Keymaster::new();
+    let seq = [Key::Char('b'), Key::Char('a'), Key::Char('r')];
+
+    master.bind(seq, Arrow::Table(0));
+    assert!(master.unbind(seq).is_ok());
+
+    assert!(master.consume(Key::Char('b')).is_none());
+    assert!(master.consume(Key::Char('a')).is_none());
+    assert!(master.consume(Key::Char('r')).is_none());
 }
 
 #[test]
@@ -83,7 +108,7 @@ fn it_handles_depth() {
     master
         .get_table_by_id(id)
         .unwrap()
-        .bind(Key::Char('r'), Arrow::Function(String::from("wtf")));
+        .bind(Key::Char('r'), Arrow::Function(Action {}));
 
     master.consume(Key::Char('b'));
     master.consume(Key::Char('a'));
