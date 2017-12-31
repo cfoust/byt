@@ -27,10 +27,11 @@ being functional. The roadmap is as follows:
   every event.
 - [X] Create a FileView that acts as a viewport into a PieceFile. Manages all
   aspects of reading, writing, and creating files.
-- [ ] byt should have a system similar to emacs where action identifiers are a
-  first-class citizen. All keybindings that correspond to an action really are
-  calling a function by name. Come up with the system of scoping (i.e pane
-  specific, global, etc) and passing mutable editor state into the functions.
+- [X] All keybindings that correspond to an action really are calling a
+  function by name. Come up with the system of scoping (i.e pane specific,
+  global, etc) and passing mutable editor state into the functions.
+- [X] Give the aforementioned closures a way to store and retrieve arbitrary
+  state.
 - [ ] Implement `vym`, byt's vim emulation mode. Most movement and insertion
   bindings will be supported out of the box.
 - [ ] Include Lua for editor extensibility. The MVP is that functions defined
