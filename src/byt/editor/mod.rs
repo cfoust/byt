@@ -59,6 +59,9 @@ pub struct Editor {
     /// been consumed yet.
     actions : Vec<Action>,
 
+    /// All of the global mutators for the editor.
+    mutators : Vec<Box<mutator::Mutator<Editor>>>,
+
     /// Whether or not we should render at the next opportunity.
     should_render : bool,
 }
@@ -70,6 +73,7 @@ impl Editor {
             keys  : Keymaster::new(),
             current_file : 0,
             should_render : false,
+            mutators : Vec::new(),
             actions : Vec::new(),
         }
     }
@@ -120,5 +124,12 @@ impl Actionable for Editor {
 
     fn has_action(&self) -> bool {
         self.actions.len() > 0
+    }
+}
+
+impl mutator::Mutatable<Editor> for Editor {
+    fn register_mutator(&mut self, mutator : Box<mutator::Mutator<Editor>>) -> io::Result<()> {
+        self.mutators.push(mutator);
+        Ok(())
     }
 }
