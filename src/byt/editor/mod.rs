@@ -9,6 +9,7 @@ use std::io;
 
 // SUBMODULES
 mod mutator;
+mod tests;
 
 // LOCAL INCLUDES
 use byt::views::file::FileView;
