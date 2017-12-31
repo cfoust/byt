@@ -8,7 +8,7 @@ use super::mutator::Scope;
 fn it_uses_a_rust_closure() {
     let mut foo = 0;
     let mut bar = 0;
-    let mut rust = mutator::RustMutator::new();
+    let mut rust = mutator::RustScope::new();
 
     rust.register("foo", |state, target| {
         *target = 2;
@@ -22,7 +22,7 @@ fn it_uses_a_rust_closure() {
 fn it_uses_a_rust_closure_with_state() {
     let mut foo = false;
     let mut bar = 0;
-    let mut rust = mutator::RustMutator::new();
+    let mut rust = mutator::RustScope::new();
 
     rust.register("foo", |state, target| {
         *state = true;

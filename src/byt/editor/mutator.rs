@@ -30,13 +30,13 @@ pub trait Scope<S, T> {
 /// Each closure is given a mutable reference to some kind of state storage
 /// (usually a struct or even the mutator itself) and the closure's target,
 /// which would be something like the editor or a pane.
-pub struct RustMutator<'a, S, T> {
+pub struct RustScope<'a, S, T> {
     map : HashMap<String, Box<Fn(&mut S, &mut T) + 'a>>
 }
 
-impl<'a, S, T> RustMutator<'a, S, T> {
-    pub fn new() -> RustMutator<'a, S, T> {
-        RustMutator {
+impl<'a, S, T> RustScope<'a, S, T> {
+    pub fn new() -> RustScope<'a, S, T> {
+        RustScope {
             map : HashMap::new()
         }
     }
@@ -47,7 +47,7 @@ impl<'a, S, T> RustMutator<'a, S, T> {
     }
 }
 
-impl<'a, S, T> Scope<S, T> for RustMutator<'a, S, T> {
+impl<'a, S, T> Scope<S, T> for RustScope<'a, S, T> {
     fn call(&self, name : &str, state : &mut S, target : &mut T) -> io::Result<()> {
         let closure = self.map.get(name);
 

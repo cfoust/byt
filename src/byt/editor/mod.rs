@@ -23,8 +23,8 @@ use byt::render;
 pub struct Action {
 }
 
-/// Allows for the entity to produce Actions to be executed. 
-/// Similar to rendering, actions are 
+/// Allows for the entity to produce Actions to be executed.
+/// Similar to rendering, actions are
 pub trait Actionable {
     /// Pop an action off of the action stack.
     fn grab_action(&mut self) -> Option<Action>;
@@ -34,7 +34,7 @@ pub trait Actionable {
 }
 
 /// Contains all editor state, responds to user input, and
-/// renders appropriately. 
+/// renders appropriately.
 pub struct Editor {
     /// Akin to vim's buffers. All of the open files in the editor.
     files : Vec<FileView>,
