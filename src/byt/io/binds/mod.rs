@@ -175,6 +175,12 @@ pub struct Keymaster {
     /// The root table with id 0.
     root_table : BindingTable,
 
+    // TODO: Make the Keymaster use a HashMap instead.
+    // The current approach works more or less without problems,
+    // but it's effectively a reimplementation of a hash map except
+    // with monotonically nondecreasing ids assigned to every
+    // new table. Just because it works and is simple doesn't mean
+    // it's good.
     /// All other binding tables. They are referred to by
     /// their id.
     tables : Vec<BindingTable>,

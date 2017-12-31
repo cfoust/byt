@@ -8,6 +8,7 @@ use termion::event::Key;
 use std::io;
 
 // SUBMODULES
+mod mutator;
 
 // LOCAL INCLUDES
 use byt::views::file::FileView;
