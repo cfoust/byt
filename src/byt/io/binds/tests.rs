@@ -71,8 +71,8 @@ fn it_unbinds_a_sequence() {
     let seq = [Key::Char('b'), Key::Char('a'), Key::Char('r')];
 
     master.bind(seq, Arrow::Table(0));
-    assert!(master.unbind(seq).is_ok());
 
+    assert!(master.unbind(seq).is_ok());
     assert!(master.consume(Key::Char('b')).is_none());
     assert!(master.consume(Key::Char('a')).is_none());
     assert!(master.consume(Key::Char('r')).is_none());

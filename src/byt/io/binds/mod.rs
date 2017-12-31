@@ -392,6 +392,8 @@ impl Keymaster {
             }
         }
 
+        // TODO clear out empty tables
+
         Ok(())
     }
 
