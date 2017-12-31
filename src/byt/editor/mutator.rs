@@ -16,14 +16,16 @@ use std::io;
 // SUBMODULES
 
 // LOCAL INCLUDES
+use byt::io::binds::KeyInput;
+use byt::editor::Actionable;
 
 /// Defines a way of calling some function by its identifier
 /// within a given scope. The closure is given a mutable reference
 /// to something of the Scope's type.
-pub trait Scope<S, T> {
+pub trait Scope<T> {
     /// Perform the function referred to by `name` on the mutable target.
     /// Will error if the name has no association.
-    fn call(&self, name : &str, state : &mut S, target : &mut T) -> io::Result<()>;
+    fn call(&mut self, name : &str, target : &mut T) -> io::Result<()>;
 }
 
 /// Stores and allows the invocation of any procedures defined in Rust.
@@ -31,14 +33,21 @@ pub trait Scope<S, T> {
 /// (usually a struct or even the mutator itself) and the closure's target,
 /// which would be something like the editor or a pane.
 pub struct RustScope<'a, S, T> {
-    map : HashMap<String, Box<Fn(&mut S, &mut T) + 'a>>
+    map : HashMap<String, Box<Fn(&mut S, &mut T) + 'a>>,
+    state : S,
 }
 
 impl<'a, S, T> RustScope<'a, S, T> {
-    pub fn new() -> RustScope<'a, S, T> {
+    pub fn new(state : S) -> RustScope<'a, S, T> {
         RustScope {
-            map : HashMap::new()
+            map : HashMap::new(),
+            state
         }
+    }
+
+    /// Get a reference to the stored state.
+    pub fn get_state(&self) -> &S {
+        &self.state
     }
 
     /// Register a closure with a name.
@@ -47,16 +56,20 @@ impl<'a, S, T> RustScope<'a, S, T> {
     }
 }
 
-impl<'a, S, T> Scope<S, T> for RustScope<'a, S, T> {
-    fn call(&self, name : &str, state : &mut S, target : &mut T) -> io::Result<()> {
+impl<'a, S, T> Scope<T> for RustScope<'a, S, T> {
+    fn call(&mut self, name : &str, target : &mut T) -> io::Result<()> {
         let closure = self.map.get(name);
 
         if closure.is_none() {
             return Err(Error::new(ErrorKind::InvalidInput, "Closure not found for name"));
         }
 
-        closure.unwrap()(state, target);
+        closure.unwrap()(&mut self.state, target);
 
         Ok(())
     }
 }
+
+/// A Mutator describes a set of bindings, actions, and hooks that manipulate a n instance of a
+/// type in some way.
+trait Mutator<T>: KeyInput + Actionable + Scope<T> {}

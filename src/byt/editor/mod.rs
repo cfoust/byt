@@ -6,6 +6,10 @@
 // LIBRARY INCLUDES
 use termion::event::Key;
 use std::io;
+use std::io::{
+    Error,
+    ErrorKind
+};
 
 // SUBMODULES
 mod mutator;
@@ -17,10 +21,11 @@ use byt::io::binds::{Keymaster, KeyInput};
 use byt::render;
 
 #[derive(Clone, PartialEq, Debug)]
-/// Represents a mutation of the editing state. Actions are guaranteed to execute in order, with
-/// actions emitted in the editor as a whole taking precedence over those emitted in individual
-/// panes.
-pub struct Action {
+/// An action will try to run the function in the scope specified.
+pub enum Action {
+    Mutator(String),
+    View(String),
+    Editor(String),
 }
 
 /// Allows for the entity to produce Actions to be executed.
@@ -28,6 +33,10 @@ pub struct Action {
 pub trait Actionable {
     /// Pop an action off of the action stack.
     fn grab_action(&mut self) -> Option<Action>;
+
+    /// Attempt to perform the action. Will error if the Action is
+    /// of an invalid type for this entity.
+    fn perform_action(&mut self, action : Action) -> io::Result<()>;
 
     /// Check whether there is an action that can be handled.
     fn has_action(&self) -> bool;
@@ -97,12 +106,18 @@ impl render::Renderable for Editor {
 }
 
 impl Actionable for Editor {
-    /// Pop an action off the stack.
     fn grab_action(&mut self) -> Option<Action> {
         self.actions.pop()
     }
 
-    /// Check whether there is an action to be consumed.
+    fn perform_action(&mut self, action : Action) -> io::Result<()> {
+        if let Action::Editor(name) = action {
+            return Ok(());
+        }
+
+        return Err(Error::new(ErrorKind::InvalidInput, "Wrong entity"));
+    }
+
     fn has_action(&self) -> bool {
         self.actions.len() > 0
     }
