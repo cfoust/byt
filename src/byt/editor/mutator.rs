@@ -7,6 +7,7 @@
 
 // LIBRARY INCLUDES
 use std::collections::HashMap;
+use termion::event::Key;
 use std::io::{
     Error,
     ErrorKind
@@ -23,6 +24,9 @@ use byt::editor::Actionable;
 /// within a given scope. The closure is given a mutable reference
 /// to something of the Scope's type.
 pub trait Scope<T> {
+    /// Whether or not this scope has a function for a certain name.
+    fn has_function(&self, name : &str) -> bool;
+
     /// Perform the function referred to by `name` on the mutable target.
     /// Will error if the name has no association.
     fn call(&mut self, name : &str, target : &mut T) -> io::Result<()>;
@@ -57,6 +61,10 @@ impl<'a, S, T> RustScope<'a, S, T> {
 }
 
 impl<'a, S, T> Scope<T> for RustScope<'a, S, T> {
+    fn has_function(&self, name : &str) -> bool {
+        self.map.get(name).is_some()
+    }
+
     fn call(&mut self, name : &str, target : &mut T) -> io::Result<()> {
         let closure = self.map.get(name);
 
@@ -79,4 +87,33 @@ pub trait Mutator<T>: KeyInput + Actionable + Scope<T> {}
 pub trait Mutatable<T> {
     /// Register a mutator with this entity.
     fn register_mutator(&mut self, mutator : Box<Mutator<T>>) -> io::Result<()>;
+}
+
+pub struct MutatePair<T> 
+    where T: KeyInput + Actionable + Scope<T> {
+    mutators : Vec<Box<Mutator<T>>>,
+    target    : T,
+}
+
+impl<T> MutatePair<T> 
+    where T: KeyInput + Actionable + Scope<T> {
+    pub fn new(target : T) -> MutatePair<T> {
+        MutatePair {
+            mutators : Vec::new(),
+            target,
+        }
+    }
+}
+
+impl<T> KeyInput for MutatePair<T> 
+    where T: KeyInput + Actionable + Scope<T> {
+    fn consume(&mut self, key : Key) -> Option<()> {
+        for mutator in self.mutators.iter_mut() {
+            if mutator.consume(key).is_some() {
+                return Some(());
+            }
+        }
+
+        self.target.consume(key)
+    }
 }

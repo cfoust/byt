@@ -19,6 +19,7 @@ mod tests;
 use byt::views::file::FileView;
 use byt::io::binds::{Keymaster, KeyInput};
 use byt::render;
+use byt::editor::mutator::Scope;
 
 #[derive(Clone, PartialEq, Debug)]
 /// An action will try to run the function in the scope specified.
@@ -115,11 +116,7 @@ impl Actionable for Editor {
     }
 
     fn perform_action(&mut self, action : Action) -> io::Result<()> {
-        if let Action::Editor(name) = action {
-            return Ok(());
-        }
-
-        return Err(Error::new(ErrorKind::InvalidInput, "Wrong entity"));
+        Ok(())
     }
 
     fn has_action(&self) -> bool {
