@@ -13,12 +13,19 @@ use std::io::{
     ErrorKind
 };
 use std::io;
+use std::vec::Drain;
+use std::ops::DerefMut;
 
 // SUBMODULES
 
 // LOCAL INCLUDES
+use byt::render::Renderable;
+use byt::render;
 use byt::io::binds::KeyInput;
-use byt::editor::Actionable;
+use byt::editor::{
+    Actionable,
+    Action
+};
 
 /// Defines a way of calling some function by its identifier
 /// within a given scope. The closure is given a mutable reference
@@ -80,7 +87,7 @@ impl<'a, S, T> Scope<T> for RustScope<'a, S, T> {
 
 /// A Mutator describes a set of bindings, actions, and hooks that manipulate a n instance of a
 /// type in some way.
-pub trait Mutator<T>: KeyInput + Actionable + Scope<T> {}
+pub trait Mutator<T>: KeyInput + Actionable + Scope<T> + Renderable {}
 
 /// A characteristic of an entity that allows state manipulation with mutators.
 /// The degree to which mutators are used is up to the implementer.
@@ -90,23 +97,43 @@ pub trait Mutatable<T> {
 }
 
 pub struct MutatePair<T> 
-    where T: KeyInput + Actionable + Scope<T> {
+    where T: KeyInput + Actionable + Renderable {
     mutators : Vec<Box<Mutator<T>>>,
-    target    : T,
+    target : T,
 }
 
 impl<T> MutatePair<T> 
-    where T: KeyInput + Actionable + Scope<T> {
+    where T: KeyInput + Actionable + Renderable {
+
+    /// Make a new MutatePair by sacrificing an instance of the pair's type.
     pub fn new(target : T) -> MutatePair<T> {
         MutatePair {
             mutators : Vec::new(),
             target,
         }
     }
+
+    /// Get an immutable reference to the internal target.
+    pub fn target(&self) -> &T {
+        &self.target
+    }
+
+    /// Get a mutable reference to the internal target.
+    pub fn target_mut(&mut self) -> &mut T {
+        &mut self.target
+    }
+
+    pub fn call_action(&mut self, name : &str) -> io::Result<()> {
+        let mut mutator = self.mutators
+            .iter_mut()
+            .find(|m| m.has_function(name));
+
+        mutator.unwrap().call(name, &mut self.target)
+    }
 }
 
 impl<T> KeyInput for MutatePair<T> 
-    where T: KeyInput + Actionable + Scope<T> {
+    where T: KeyInput + Actionable + Renderable {
     fn consume(&mut self, key : Key) -> Option<()> {
         for mutator in self.mutators.iter_mut() {
             if mutator.consume(key).is_some() {
@@ -115,5 +142,55 @@ impl<T> KeyInput for MutatePair<T>
         }
 
         self.target.consume(key)
+    }
+}
+
+impl<T> Actionable for MutatePair<T> 
+    where T: KeyInput + Actionable + Renderable {
+    fn actions(&mut self) -> Vec<Action> {
+        let mut actions = Vec::new();
+
+        for mutator in self.mutators.iter_mut() {
+            for action in mutator.actions() {
+                actions.push(action);
+            }
+        }
+
+        for action in self.target.actions() {
+            actions.push(action);
+        }
+
+        actions
+    }
+}
+
+impl<T> Renderable for MutatePair<T> 
+    where T: KeyInput + Actionable + Renderable {
+    fn render(&mut self, renderer : &mut render::Renderer, size : (u16, u16)) -> io::Result<()> {
+        self.target.render(renderer, size);
+
+        for mutator in self.mutators.iter_mut() {
+            mutator.render(renderer, size);
+        }
+
+        Ok(())
+    }
+
+    fn should_render(&self) -> bool {
+        let mut result = self.target.should_render();
+
+        for mutator in self.mutators.iter() {
+            result = mutator.should_render() || result;
+        }
+
+        result
+    }
+}
+
+impl<T> Mutatable<T> for MutatePair<T>
+    where T: KeyInput + Actionable + Renderable {
+    fn register_mutator(&mut self, mutator : Box<Mutator<T>>) -> io::Result<()> {
+        self.mutators.push(mutator);
+        Ok(())
     }
 }

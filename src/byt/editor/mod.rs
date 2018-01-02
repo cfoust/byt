@@ -10,9 +10,10 @@ use std::io::{
     Error,
     ErrorKind
 };
+use std::vec::Drain;
 
 // SUBMODULES
-mod mutator;
+pub mod mutator;
 mod tests;
 
 // LOCAL INCLUDES
@@ -30,17 +31,9 @@ pub enum Action {
 }
 
 /// Allows for the entity to produce Actions to be executed.
-/// Similar to rendering, actions are
 pub trait Actionable {
-    /// Pop an action off of the action stack.
-    fn grab_action(&mut self) -> Option<Action>;
-
-    /// Attempt to perform the action. Will error if the Action is
-    /// of an invalid type for this entity.
-    fn perform_action(&mut self, action : Action) -> io::Result<()>;
-
-    /// Check whether there is an action that can be handled.
-    fn has_action(&self) -> bool;
+    /// All of the actions that have not yet been consumed.
+    fn actions(&mut self) -> Vec<Action>;
 }
 
 /// Contains all editor state, responds to user input, and
@@ -111,16 +104,8 @@ impl render::Renderable for Editor {
 }
 
 impl Actionable for Editor {
-    fn grab_action(&mut self) -> Option<Action> {
-        self.actions.pop()
-    }
-
-    fn perform_action(&mut self, action : Action) -> io::Result<()> {
-        Ok(())
-    }
-
-    fn has_action(&self) -> bool {
-        self.actions.len() > 0
+    fn actions(&mut self) -> Vec<Action> {
+        self.actions.drain(..).collect()
     }
 }
 

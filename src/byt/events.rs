@@ -11,8 +11,7 @@ use termion::event::Key;
 use byt::editor::Action;
 
 pub enum Event {
-    /// An action that should be handled.
-    Function(Action),
     /// Any keypress registered by stdio.
-    KeyPress(Key)
+    KeyPress(Key),
+    Nothing
 }

@@ -28,6 +28,7 @@ mod views;
 
 // LOCAL INCLUDES
 use byt::editor::{Action, Actionable};
+use byt::editor::mutator::*;
 use byt::io::binds::KeyInput;
 use byt::io::file;
 use byt::render::Renderable;
@@ -52,9 +53,9 @@ pub fn init() {
 
     let (sender, receiver) = channel::<Event>();
 
-    let mut editor = editor::Editor::new();
+    let mut editor = MutatePair::new(editor::Editor::new());
 
-    editor.open("README.md");
+    editor.target_mut().open("README.md");
 
     // One thread just reads from user input and makes
     // events from whatever it gets.
@@ -84,8 +85,11 @@ pub fn init() {
                 continue;
             }
 
-            let action = editor.grab_action().unwrap();
-            sender.send(Event::Function(action));
+            for action in editor.actions() {
+                if let Action::Mutator(name) = action {
+                    editor.call_action(name.as_str());
+                }
+            }
         }
 
         // Check if we should render
