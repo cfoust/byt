@@ -19,7 +19,7 @@ use byt::editor::{Action, Actionable};
 
 /// Acts as a transition arrow between states of the state machine.
 #[derive(Clone, PartialEq, Debug)]
-enum Arrow {
+pub enum Arrow {
     /// Triggers some kind of action within the editor.
     /// In the future this will be a reference to a closure, probably.
     /// For now we just use strings for ease of testing.
@@ -365,6 +365,11 @@ impl Keymaster {
         self.get_table_by_id(table).unwrap().bind(last[0], action)
     }
 
+    /// Bind a mutator action to a sequence.
+    pub fn bind_action<T: AsRef<[Key]>>(&mut self, sequence : T, action : &str) -> io::Result<()> {
+        self.bind(sequence, Arrow::Function(Action::Mutator(String::from(action))))
+    }
+
     /// Remove the action and any tables that reference it. Any of the action's
     /// parents back to the root table will be destroyed if they only contained
     /// this binding.
@@ -423,17 +428,6 @@ impl Keymaster {
         self.get_table_by_id(0).unwrap()
     }
 
-    /// Pop an action that can be consumed.
-    pub fn grab_action(&mut self) -> Option<Action> {
-        self.actions.pop()
-    }
-
-    /// Check whether we can consume an action.
-    pub fn has_action(&self) -> bool {
-        self.actions.len() > 0
-    }
-
-
     /// Return to the initial (root) state.
     pub fn to_root(&mut self) {
         self.current_table = 0;
@@ -449,6 +443,12 @@ impl Keymaster {
             id_counter : 1,
             actions : Vec::new()
         }
+    }
+}
+
+impl Actionable for Keymaster {
+    fn actions(&mut self) -> Vec<Action> {
+        self.actions.drain(..).collect()
     }
 }
 

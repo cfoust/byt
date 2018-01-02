@@ -87,7 +87,10 @@ impl<'a, S, T> Scope<T> for RustScope<'a, S, T> {
 
 /// A Mutator describes a set of bindings, actions, and hooks that manipulate a n instance of a
 /// type in some way.
-pub trait Mutator<T>: KeyInput + Actionable + Scope<T> + Renderable {}
+pub trait Mutator<T>: KeyInput + Actionable + Scope<T> + Renderable {
+    ///// Called after the mutator is registered on an entity.
+    //fn post_register(&mut self, target : &mut T) -> io::Result<()>;
+}
 
 /// A characteristic of an entity that allows state manipulation with mutators.
 /// The degree to which mutators are used is up to the implementer.

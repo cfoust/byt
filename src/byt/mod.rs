@@ -23,6 +23,7 @@ use termion;
 mod editor;
 mod events;
 mod io;
+mod mutators;
 mod render;
 mod views;
 
@@ -32,6 +33,7 @@ use byt::editor::mutator::*;
 use byt::io::binds::KeyInput;
 use byt::io::file;
 use byt::render::Renderable;
+use byt::mutators::vym::Vym;
 use self::events::*;
 
 /// Initialize and start byt.
@@ -54,6 +56,8 @@ pub fn init() {
     let (sender, receiver) = channel::<Event>();
 
     let mut editor = MutatePair::new(editor::Editor::new());
+
+    editor.register_mutator(Box::new(Vym::new()));
 
     editor.target_mut().open("README.md");
 
