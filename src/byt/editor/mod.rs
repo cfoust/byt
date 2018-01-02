@@ -20,14 +20,13 @@ mod tests;
 use byt::views::file::FileView;
 use byt::io::binds::{Keymaster, KeyInput};
 use byt::render;
-use byt::editor::mutator::Scope;
+use byt::editor::mutator::MutatePair;
 
 #[derive(Clone, PartialEq, Debug)]
 /// An action will try to run the function in the scope specified.
 pub enum Action {
     Mutator(String),
-    View(String),
-    Editor(String),
+    There(String),
 }
 
 /// Allows for the entity to produce Actions to be executed.
@@ -40,7 +39,7 @@ pub trait Actionable {
 /// renders appropriately.
 pub struct Editor {
     /// Akin to vim's buffers. All of the open files in the editor.
-    files : Vec<FileView>,
+    files : Vec<MutatePair<FileView>>,
 
     /// Stores all of the global keybindings.
     keys : Keymaster,
@@ -73,13 +72,13 @@ impl Editor {
     }
 
     /// Get the file that's currently open.
-    pub fn current_file(&mut self) -> Option<&mut FileView> {
+    pub fn current_file(&mut self) -> Option<&mut MutatePair<FileView>> {
         self.files.get_mut(self.current_file)
     }
 
     /// Attempt to open a file and make it the current pane.
     pub fn open(&mut self, path : &str) -> io::Result<()> {
-        self.files.push(FileView::new(path)?);
+        self.files.push(MutatePair::new(FileView::new(path)?));
         self.current_file = self.files.len() - 1;
         Ok(())
     }
@@ -87,7 +86,21 @@ impl Editor {
 
 impl KeyInput for Editor {
     fn consume(&mut self, key : Key) -> Option<()> {
-        // TODO: do it pane-locally first
+        {
+            let mut file = self.current_file().unwrap();
+            let result = file.consume(key);
+
+            if result.is_some() {
+                for action in file.actions() {
+                    if let Action::Mutator(name) = action {
+                        file.call_action(name.as_str());
+                    }
+                }
+
+                return Some(());
+            }
+        }
+            
         self.keys.consume(key)
     }
 }
@@ -105,13 +118,12 @@ impl render::Renderable for Editor {
 
 impl Actionable for Editor {
     fn actions(&mut self) -> Vec<Action> {
-        self.actions.drain(..).collect()
-    }
-}
+        let mut actions = Vec::new();
 
-impl mutator::Mutatable<Editor> for Editor {
-    fn register_mutator(&mut self, mutator : Box<mutator::Mutator<Editor>>) -> io::Result<()> {
-        self.mutators.push(mutator);
-        Ok(())
+        for action in self.actions.drain(..) {
+            actions.push(action);
+        }
+
+        actions
     }
 }

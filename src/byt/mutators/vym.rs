@@ -15,6 +15,7 @@ use byt::editor::mutator::*;
 use byt::editor::*;
 use byt::render;
 use byt::render::Renderable;
+use byt::views::file::FileView;
 use byt::io::binds::{Arrow, Keymaster, KeyInput};
 
 // TODO add comments and explain everything
@@ -24,12 +25,12 @@ fn init_vym(vym : &mut Vym) {
     let mut rust = &mut vym.rust;
 
     rust.register("vym.right", |state, target| {
-        target.current_file().unwrap().move_right();
+        target.move_right();
     });
     keys.bind_action([Key::Char('l')], "vym.right");
 
     rust.register("vym.left", |state, target| {
-        target.current_file().unwrap().move_left();
+        target.move_left();
     });
     keys.bind_action([Key::Char('h')], "vym.left");
 }
@@ -39,7 +40,7 @@ struct VymState {
 }
 
 pub struct Vym<'a> {
-    rust : RustScope<'a, VymState, Editor>,
+    rust : RustScope<'a, VymState, FileView>,
     keys : Keymaster
 }
 
@@ -56,7 +57,7 @@ impl<'a> Vym<'a> {
     }
 }
 
-impl<'a> Mutator<Editor> for Vym<'a> {
+impl<'a> Mutator<FileView> for Vym<'a> {
 }
 
 impl<'a> Actionable for Vym<'a> {
@@ -75,12 +76,12 @@ impl<'a> Renderable for Vym<'a> {
     }
 }
 
-impl<'a> Scope<Editor> for Vym<'a> {
+impl<'a> Scope<FileView> for Vym<'a> {
     fn has_function(&self, name : &str) -> bool {
         self.rust.has_function(name)
     }
 
-    fn call(&mut self, name : &str, target : &mut Editor) -> io::Result<()> {
+    fn call(&mut self, name : &str, target : &mut FileView) -> io::Result<()> {
         self.rust.call(name, target)
     }
 }

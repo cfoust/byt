@@ -56,10 +56,13 @@ pub fn init() {
     let (sender, receiver) = channel::<Event>();
 
     let mut editor = MutatePair::new(editor::Editor::new());
-
-    editor.register_mutator(Box::new(Vym::new()));
-
     editor.target_mut().open("README.md");
+
+    editor
+        .target_mut()
+        .current_file()
+        .unwrap()
+        .register_mutator(Box::new(Vym::new()));
 
     // One thread just reads from user input and makes
     // events from whatever it gets.
