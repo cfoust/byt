@@ -12,10 +12,10 @@ use std::io::{
     BufReader,
     Error,
     ErrorKind,
-    Read, 
+    Read,
     Result,
-    Seek, 
-    SeekFrom, 
+    Seek,
+    SeekFrom,
     Write
 };
 use std::io;
@@ -50,7 +50,7 @@ struct Piece {
 }
 
 impl Piece {
-    /// Convert a logical offset, which is piece-table global, to an offset 
+    /// Convert a logical offset, which is piece-table global, to an offset
     /// inside the Piece's file.
     pub fn logical_to_file(&self, offset : u64) -> u64 {
         return (offset - self.logical_offset) + self.file_offset;
@@ -580,6 +580,10 @@ impl PieceFile {
     /// one grapheme fewer.
     pub fn read(&mut self, num_bytes : u64) -> io::Result<Box<String>> {
         let mut result = Box::new(String::new());
+
+        if num_bytes == 0 {
+            return Ok(result);
+        }
 
         let start_offset = self.offset;
         let start_index  = self.get_at_offset(start_offset);

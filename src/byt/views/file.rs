@@ -64,10 +64,12 @@ impl FileView {
     /// Calculate the size of the viewport.
     fn calculate_viewport(&mut self, size : (u16, u16)) -> (u64, u64) {
         let (rows, cols) = size;
-        let viewport_loc = self.lines[self.viewport_top as usize];
+        let viewport_loc = if self.lines.len() > 0 {
+                self.lines[self.viewport_top as usize]
+        } else { 0 };
 
         // We'll come back and add support for multibyte characters
-        // at some point. For the time being I don't feel like 
+        // at some point. For the time being I don't feel like
         // implementing it.
         (viewport_loc, cmp::min((rows * cols) as u64, self.file.len()))
     }

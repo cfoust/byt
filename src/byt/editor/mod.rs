@@ -82,6 +82,13 @@ impl Editor {
         self.current_file = self.files.len() - 1;
         Ok(())
     }
+
+    /// Make a new empty file.
+    pub fn open_empty(&mut self) -> io::Result<()> {
+        self.files.push(MutatePair::new(FileView::empty()?));
+        self.current_file = self.files.len() - 1;
+        Ok(())
+    }
 }
 
 impl KeyInput for Editor {

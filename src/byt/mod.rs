@@ -28,13 +28,27 @@ mod render;
 mod views;
 
 // LOCAL INCLUDES
-use byt::editor::{Action, Actionable};
+use byt::editor::{Action, Actionable, Editor};
 use byt::editor::mutator::*;
 use byt::io::binds::KeyInput;
 use byt::io::file;
 use byt::render::Renderable;
 use byt::mutators::vym::Vym;
 use self::events::*;
+
+pub fn render(mut screen : &mut Write, editor : &mut MutatePair<Editor>) {
+    let size = termion::terminal_size().unwrap();
+
+    // Clear the screen before rendering
+    write!(screen, "{}", termion::clear::All);
+
+    {
+        let mut renderer = render::terminal::TermRenderer::new(&mut screen);
+        editor.render(&mut renderer, size);
+    }
+
+    screen.flush().unwrap();
+}
 
 /// Initialize and start byt.
 pub fn init() {
@@ -56,13 +70,15 @@ pub fn init() {
     let (sender, receiver) = channel::<Event>();
 
     let mut editor = MutatePair::new(editor::Editor::new());
-    editor.target_mut().open("README.md");
+    editor.target_mut().open_empty();
 
     editor
         .target_mut()
         .current_file()
         .unwrap()
         .register_mutator(Box::new(Vym::new()));
+
+    render(&mut screen, &mut editor);
 
     // One thread just reads from user input and makes
     // events from whatever it gets.
@@ -104,16 +120,6 @@ pub fn init() {
             continue;
         }
 
-        let size = termion::terminal_size().unwrap();
-
-        // Clear the screen before rendering
-        write!(screen, "{}", termion::clear::All);
-
-        {
-            let mut renderer = render::terminal::TermRenderer::new(&mut screen);
-            editor.render(&mut renderer, size);
-        }
-
-        screen.flush().unwrap();
+        render(&mut screen, &mut editor);
     }
 }
