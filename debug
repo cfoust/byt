@@ -1,0 +1,3 @@
+#/usr/bin/env bash
+
+cargo build && gdb -x panics.gdb target/debug/byt

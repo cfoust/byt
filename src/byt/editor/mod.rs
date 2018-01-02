@@ -82,6 +82,13 @@ impl Editor {
         self.current_file = self.files.len() - 1;
         Ok(())
     }
+
+    /// Make a new empty file.
+    pub fn open_empty(&mut self) -> io::Result<()> {
+        self.files.push(MutatePair::new(FileView::empty()?));
+        self.current_file = self.files.len() - 1;
+        Ok(())
+    }
 }
 
 impl KeyInput for Editor {
@@ -93,7 +100,7 @@ impl KeyInput for Editor {
             if result.is_some() {
                 for action in file.actions() {
                     if let Action::Mutator(name) = action {
-                        file.call_action(name.as_str());
+                        file.call_action(name.as_str(), key);
                     }
                 }
 

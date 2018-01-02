@@ -99,6 +99,54 @@ fn it_deletes_inside_piece() {
 }
 
 #[test]
+fn it_inserts_little_pieces() {
+    let mut file = PieceFile::empty().unwrap();
+
+    file.insert("a", 0);
+    file.insert("a", 0);
+    file.insert("a", 0);
+    file.insert("a", 0);
+    file.insert("b", 1);
+
+    assert_eq!(file.piece_table.len(), 5);
+
+    // This should be the piece with an 'a' in it
+    {
+        let piece = &file.piece_table[0];
+        assert_eq!(piece.file, SourceFile::Append);
+        assert_eq!(piece.length, 1);
+        assert_eq!(piece.file_offset, 3);
+        assert_eq!(piece.logical_offset, 0);
+    }
+
+    // This should be the piece with the 'b' in it
+    {
+        let piece = &file.piece_table[1];
+        assert_eq!(piece.file, SourceFile::Append);
+        assert_eq!(piece.length, 1);
+        assert_eq!(piece.file_offset, 4);
+        assert_eq!(piece.logical_offset, 1);
+    }
+
+    let read = file.read(5).unwrap();
+    assert_eq!(read.as_str(), "abaaa");
+}
+
+
+#[test]
+fn it_deletes_backwards() {
+    let mut file = PieceFile::empty().unwrap();
+
+    file.insert("hhhh", 0);
+    file.delete(2, 1);
+    file.delete(1, 1);
+    file.delete(0, 1);
+
+    let read = file.read(1).unwrap();
+    assert_eq!(read.as_str(), "h");
+}
+
+#[test]
 fn it_deletes_across_two_pieces() {
     let mut file = PieceFile::empty().unwrap();
     assert_eq!(file.piece_table.len(), 0);
