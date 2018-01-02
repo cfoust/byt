@@ -25,23 +25,23 @@ being functional. The roadmap is as follows:
   each pane can only render within its bounds. Trait should have `render()` and
   `should_render()` functions, which are used to render if necessary after
   every event.
-- [X] Create a FileView that acts as a viewport into a PieceFile. Manages all
-  aspects of reading, writing, and creating files.
+- [ ] Create a FileView that acts as a viewport into a PieceFile. Manages all
+  aspects of [X] reading, [ ] writing, and [ ] creating files.
 - [X] All keybindings that correspond to an action really are calling a
-  function by name. Come up with the system of scoping (i.e pane specific,
+  closure by name. Come up with the system of scoping (i.e pane specific,
   global, etc) and passing mutable editor state into the functions.
 - [X] Give the aforementioned closures a way to store and retrieve arbitrary
   state.
+- [X] Set up a system of mutations, which optionally attach to the pane or the
+  global editing context and provide a combination of binding tables and
+  functions.
 - [ ] Implement `vym`, byt's vim emulation mode. Most movement and insertion
-  bindings will be supported out of the box.
-- [ ] Include Lua for editor extensibility. The MVP is that functions defined
-  in Lua can be called from bindings. Also, Lua's functions should have access
+  bindings will be supported out of the box. Editor should be usable by this point.
+- [ ] Include gluon for editor extensibility. The MVP is that functions defined
+  in gluon can be called from bindings. Also, gluon's functions should have access
   to all of the editor state that Rust-defined functions would.
 - [ ] Pane system sort of akin to vim's. Restrict rendering to a particular
   area of the screen.
-- [ ] Set up a system of mutations, which optionally attach to the pane or the
-  global editing context and provide a combination of binding tables and
-  functions.
 - [ ] As the user works with byt, optionally collect usage information that can
   suggest more efficient keybindings.
 - [ ] Create a UIView that extends Renderable and lets you create menus,
