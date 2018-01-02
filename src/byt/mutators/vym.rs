@@ -68,6 +68,7 @@ impl<'a> Actionable for Vym<'a> {
 
 impl<'a> Renderable for Vym<'a> {
     fn render(&mut self, renderer : &mut render::Renderer, size : (u16, u16)) -> io::Result<()> {
+        let (rows, cols) = size;
         Ok(())
     }
 

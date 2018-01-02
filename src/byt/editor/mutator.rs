@@ -99,13 +99,13 @@ pub trait Mutatable<T> {
     fn register_mutator(&mut self, mutator : Box<Mutator<T>>) -> io::Result<()>;
 }
 
-pub struct MutatePair<T> 
+pub struct MutatePair<T>
     where T: KeyInput + Actionable + Renderable {
     mutators : Vec<Box<Mutator<T>>>,
     target : T,
 }
 
-impl<T> MutatePair<T> 
+impl<T> MutatePair<T>
     where T: KeyInput + Actionable + Renderable {
 
     /// Make a new MutatePair by sacrificing an instance of the pair's type.
@@ -135,7 +135,7 @@ impl<T> MutatePair<T>
     }
 }
 
-impl<T> KeyInput for MutatePair<T> 
+impl<T> KeyInput for MutatePair<T>
     where T: KeyInput + Actionable + Renderable {
     fn consume(&mut self, key : Key) -> Option<()> {
         for mutator in self.mutators.iter_mut() {
@@ -148,7 +148,7 @@ impl<T> KeyInput for MutatePair<T>
     }
 }
 
-impl<T> Actionable for MutatePair<T> 
+impl<T> Actionable for MutatePair<T>
     where T: KeyInput + Actionable + Renderable {
     fn actions(&mut self) -> Vec<Action> {
         let mut actions = Vec::new();
@@ -167,7 +167,7 @@ impl<T> Actionable for MutatePair<T>
     }
 }
 
-impl<T> Renderable for MutatePair<T> 
+impl<T> Renderable for MutatePair<T>
     where T: KeyInput + Actionable + Renderable {
     fn render(&mut self, renderer : &mut render::Renderer, size : (u16, u16)) -> io::Result<()> {
         self.target.render(renderer, size);

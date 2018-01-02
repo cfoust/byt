@@ -100,7 +100,7 @@ impl KeyInput for Editor {
                 return Some(());
             }
         }
-            
+
         self.keys.consume(key)
     }
 }

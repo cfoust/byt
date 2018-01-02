@@ -16,7 +16,7 @@ mod tables {
     fn it_returns_the_wildcard() {
         let mut table = BindingTable::new(0);
 
-        table.set_wildcard(Arrow::Function(Action::View(String::from("Blah"))));
+        table.set_wildcard(Arrow::Function(Action::Mutator(String::from("Blah"))));
 
         assert!(table.search_key(Key::Char('b')).is_some());
     }
@@ -48,7 +48,7 @@ fn it_finds_a_wildcard() {
 
     master
         .get_root()
-        .set_wildcard(Arrow::Function(Action::View(String::from("Blah"))));
+        .set_wildcard(Arrow::Function(Action::Mutator(String::from("Blah"))));
 
     assert!(master.search_key(Key::Char('a')).is_some());
 }
@@ -108,7 +108,7 @@ fn it_handles_depth() {
     master
         .get_table_by_id(id)
         .unwrap()
-        .bind(Key::Char('r'), Arrow::Function(Action::View(String::from("Blah"))));
+        .bind(Key::Char('r'), Arrow::Function(Action::Mutator(String::from("Blah"))));
 
     master.consume(Key::Char('b'));
     master.consume(Key::Char('a'));
