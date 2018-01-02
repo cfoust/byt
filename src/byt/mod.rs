@@ -20,15 +20,21 @@ use termion::screen::AlternateScreen;
 use termion;
 
 // SUBMODULES
+mod editor;
 mod events;
 mod io;
+mod mutators;
 mod render;
 mod views;
 
 // LOCAL INCLUDES
-use self::events::*;
-use byt::render::Renderable;
+use byt::editor::{Action, Actionable};
+use byt::editor::mutator::*;
+use byt::io::binds::KeyInput;
 use byt::io::file;
+use byt::render::Renderable;
+use byt::mutators::vym::Vym;
+use self::events::*;
 
 /// Initialize and start byt.
 pub fn init() {
@@ -49,33 +55,14 @@ pub fn init() {
 
     let (sender, receiver) = channel::<Event>();
 
-    let mut key_handler = io::binds::Keymaster::new();
+    let mut editor = MutatePair::new(editor::Editor::new());
+    editor.target_mut().open("README.md");
 
-    {
-        let mut table = io::binds::BindingTable::new();
-
-        table.add_binding(io::binds::Binding::new(
-                Key::Char('q'),
-                io::binds::Action::Function(String::from("quit")),
-                ));
-
-        table.add_binding(io::binds::Binding::new(
-                Key::Char('a'),
-                io::binds::Action::Function(String::from("render")),
-                ));
-
-        table.add_binding(io::binds::Binding::new(
-                Key::Char('l'),
-                io::binds::Action::Function(String::from("right")),
-                ));
-
-        table.add_binding(io::binds::Binding::new(
-                Key::Char('h'),
-                io::binds::Action::Function(String::from("left")),
-                ));
-
-        key_handler.add_table(table);
-    }
+    editor
+        .target_mut()
+        .current_file()
+        .unwrap()
+        .register_mutator(Box::new(Vym::new()));
 
     // One thread just reads from user input and makes
     // events from whatever it gets.
@@ -89,46 +76,31 @@ pub fn init() {
         }
     });
 
-    let mut view = views::file::FileView::new("README.md").unwrap();
-
-    let mut files = Vec::new();
-    files.push(view);
-
     loop {
         let event = receiver.recv().unwrap();
         let sender = sender.clone();
 
         if let Event::KeyPress(key) = event {
-            let result = key_handler.consume(key);
+            // Just for now while I mess with other things
+            if key == Key::Char('q') {
+                break;
+            }
+
+            let result = editor.consume(key);
 
             if result.is_none() {
                 continue;
             }
 
-            sender.send(Event::Function(result.unwrap()));
-        }
-
-        if let Event::Function(name) = event {
-            if name == "quit" {
-                break;
-            }
-
-            if name == "right" {
-                files[0].move_right();
-            }
-
-            if name == "left" {
-                files[0].move_left();
+            for action in editor.actions() {
+                if let Action::Mutator(name) = action {
+                    editor.call_action(name.as_str());
+                }
             }
         }
 
         // Check if we should render
-        let mut should_render = false;
-        for file in files.iter() {
-            should_render = should_render || file.should_render();
-        }
-
-        if !should_render {
+        if !editor.should_render() {
             continue;
         }
 
@@ -137,13 +109,9 @@ pub fn init() {
         // Clear the screen before rendering
         write!(screen, "{}", termion::clear::All);
 
-        for file in files.iter_mut() {
-            if !file.should_render() {
-                continue;
-            }
-
+        {
             let mut renderer = render::terminal::TermRenderer::new(&mut screen);
-            file.render(&mut renderer, size);
+            editor.render(&mut renderer, size);
         }
 
         screen.flush().unwrap();

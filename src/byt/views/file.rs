@@ -8,16 +8,27 @@
 use std::cmp;
 use std::fs::File;
 use std::fs;
-use std::io::{BufReader, ErrorKind, Error, Result};
 use std::io::Seek;
 use std::io::SeekFrom;
+use std::io::{BufReader, ErrorKind, Error, Result};
+use std::io;
+use termion::event::Key;
 
 // SUBMODULES
 
 // LOCAL INCLUDES
+use byt::io::binds::Keymaster;
 use byt::io::file::PieceFile;
 use byt::render;
+use byt::editor::{
+    Action,
+    Actionable,
+    mutator
+};
+use byt::io::binds::KeyInput;
 
+/// Analogous to a buffer in vim. Offers abstractions
+/// over byt's PieceFile type.
 pub struct FileView {
     /// The path to the file this FileView references.
     path : Option<String>,
@@ -37,6 +48,12 @@ pub struct FileView {
     /// Whether or not this view should be rendered after
     /// the next event.
     _should_render : bool,
+
+    /// Stores and interprets keybindings for this buffer
+    /// in particular.
+    keys : Keymaster,
+
+    mutators : Vec<Box<mutator::Mutator<FileView>>>,
 }
 
 impl FileView {
@@ -89,6 +106,8 @@ impl FileView {
             viewport_top : 0,
             lines : Vec::new(),
             _should_render : true,
+            keys  : Keymaster::new(),
+            mutators : Vec::new(),
         })
     }
 
@@ -130,6 +149,8 @@ impl FileView {
             viewport_top : 0,
             lines : Vec::new(),
             _should_render : true,
+            keys  : Keymaster::new(),
+            mutators : Vec::new(),
         };
 
         view.regenerate_lines();
@@ -151,6 +172,18 @@ impl FileView {
         self.viewport_top = cmp::min(line, (self.lines.len() - 1) as u64);
 
         Ok(())
+    }
+}
+
+impl KeyInput for FileView {
+    fn consume(&mut self, key : Key) -> Option<()> {
+        None
+    }
+}
+
+impl Actionable for FileView {
+    fn actions(&mut self) -> Vec<Action> {
+        Vec::new()
     }
 }
 

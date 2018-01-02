@@ -8,10 +8,10 @@ use termion::event::Key;
 // SUBMODULES
 
 // LOCAL INCLUDES
+use byt::editor::Action;
 
 pub enum Event {
-    /// An action that should be handled.
-    Function(String),
     /// Any keypress registered by stdio.
-    KeyPress(Key)
+    KeyPress(Key),
+    Nothing
 }
