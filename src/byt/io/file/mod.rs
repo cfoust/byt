@@ -388,7 +388,7 @@ impl PieceFile {
             action.merge_down = true;
         }
 
-        self.update_offsets(split_index);
+        self.update_offsets(0);
 
         action
     }
@@ -406,12 +406,16 @@ impl PieceFile {
                 let append_end_offset   = append_start_offset + num_bytes;
                 let append_bytes        = self.append_file.as_bytes();
 
-                let append_slice = append_bytes
-                    .get(append_start_offset as usize ..
-                         append_end_offset as usize)
-                    .unwrap();
-
-                buf.clone_from_slice(append_slice);
+                if append_start_offset == append_end_offset {
+                    let byte = append_bytes.get(append_start_offset as usize).unwrap();
+                    buf[0] = *byte;
+                } else {
+                    let append_slice = append_bytes
+                        .get(append_start_offset as usize ..
+                             append_end_offset as usize)
+                        .unwrap();
+                    buf.copy_from_slice(append_slice);
+                }
             },
             SourceFile::Original => {
                 let reader = self.reader.as_mut().unwrap();
@@ -456,7 +460,7 @@ impl PieceFile {
         }
 
         let mut offset = self.piece_table[start_index].logical_offset +
-                         self.piece_table[start_index].length;
+            self.piece_table[start_index].length;
 
         for index in start_index + 1 .. self.piece_table.len() {
             let piece = &mut self.piece_table[index];

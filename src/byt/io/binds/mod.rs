@@ -60,7 +60,7 @@ impl Binding {
 }
 
 /// A table of bindings.
-struct BindingTable {
+pub struct BindingTable {
     bindings : Vec<Binding>,
     /// Describes what happens when a key matches nothing in the list
     /// of bindings. If `wildcard` is an Arrow, it is invoked with
@@ -287,6 +287,10 @@ impl Keymaster {
             let mut max_index   = 0;
             let mut should_make = false;
 
+            if prefix.as_ref().len() == 0 {
+                return Ok(max_id);
+            }
+
             // We need to find where we need to start making tables.
 
             for key in prefix.as_ref().iter() {
@@ -352,6 +356,11 @@ impl Keymaster {
     // P U B L I C  F U N C T I O N S
     // ###############################
 
+    /// Make an arrow that runs a mutator action.
+    pub fn mutator_action(&self, action : &str) -> Arrow {
+        Arrow::Function(Action::Mutator(String::from(action)))
+    }
+
     /// Bind some an action to a key sequence. Intermediate binding
     /// tables are created automatically. Will return Err if the sequence
     /// does not resolve to a table that can be created. This might happen
@@ -367,7 +376,19 @@ impl Keymaster {
 
     /// Bind a mutator action to a sequence.
     pub fn bind_action<T: AsRef<[Key]>>(&mut self, sequence : T, action : &str) -> io::Result<()> {
-        self.bind(sequence, Arrow::Function(Action::Mutator(String::from(action))))
+        let action = self.mutator_action(action);
+        self.bind(sequence, action)
+    }
+
+    /// Set a wildcard to some action in particular.
+    pub fn bind_wildcard<T: AsRef<[Key]>>(&mut self, sequence : T, action : &str) -> io::Result<()> {
+        let sequence       = sequence.as_ref();
+        let (prefix, last) = sequence.split_at(sequence.len() - 1);
+        let table          = self.make_prefix(prefix)?;
+        let action         = self.mutator_action(action);
+
+        self.get_table_by_id(table).unwrap().set_wildcard(action);
+        Ok(())
     }
 
     /// Remove the action and any tables that reference it. Any of the action's

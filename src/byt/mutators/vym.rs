@@ -21,34 +21,73 @@ use byt::io::binds::{Arrow, Keymaster, KeyInput};
 // TODO add comments and explain everything
 
 fn init_vym(vym : &mut Vym) {
-    let mut keys = &mut vym.keys;
+    let mut normal = &mut vym.normal;
     let mut rust = &mut vym.rust;
 
-    rust.register("vym.right", |state, target| {
+    rust.register("vym.right", |state, target, key| {
         target.move_right();
     });
-    keys.bind_action([Key::Char('l')], "vym.right");
+    normal.bind_action([Key::Char('l')], "vym.right");
 
-    rust.register("vym.left", |state, target| {
+    rust.register("vym.left", |state, target, key| {
         target.move_left();
     });
-    keys.bind_action([Key::Char('h')], "vym.left");
+    normal.bind_action([Key::Char('h')], "vym.left");
+
+    rust.register("vym.down", |state, target, key| {
+        target.move_down();
+    });
+    normal.bind_action([Key::Char('j')], "vym.left");
+
+    rust.register("vym.insert", |state, target, key| {
+        state.mode = Mode::Insert;
+    });
+    rust.register("vym.insert_char", |state, target, key| {
+        if let Key::Ctrl('c') = key {
+            state.mode = Mode::Normal;
+        } else if let Key::Char(c) = key {
+            target.insert(c);
+        }
+    });
+    normal.bind_action([Key::Char('i')], "vym.insert");
+
+    rust.register("vym.normal", |state, target, key| {
+        state.mode = Mode::Normal;
+    });
+
+    let insert_char = vym.insert.mutator_action("vym.insert_char");
+    vym.insert.get_root().set_wildcard(insert_char);
+}
+
+enum Mode {
+    Normal,
+    Insert
 }
 
 struct VymState {
-    mode : u8
+    mode : Mode
+}
+
+impl VymState {
+    pub fn new() -> VymState {
+        VymState {
+            mode : Mode::Normal
+        }
+    }
 }
 
 pub struct Vym<'a> {
     rust : RustScope<'a, VymState, FileView>,
-    keys : Keymaster
+    normal : Keymaster,
+    insert : Keymaster,
 }
 
 impl<'a> Vym<'a> {
     pub fn new() -> Vym<'a> {
         let mut vym = Vym {
-            rust  : RustScope::new(VymState { mode : 0 }),
-            keys  : Keymaster::new()
+            rust  : RustScope::new(VymState::new()),
+            normal  : Keymaster::new(),
+            insert  : Keymaster::new(),
         };
 
         init_vym(&mut vym);
@@ -57,12 +96,14 @@ impl<'a> Vym<'a> {
     }
 }
 
-impl<'a> Mutator<FileView> for Vym<'a> {
-}
+impl<'a> Mutator<FileView> for Vym<'a> {}
 
 impl<'a> Actionable for Vym<'a> {
     fn actions(&mut self) -> Vec<Action> {
-        self.keys.actions()
+        match self.rust.state().mode {
+            Mode::Normal => self.normal.actions(),
+            Mode::Insert => self.insert.actions(),
+        }
     }
 }
 
@@ -82,13 +123,16 @@ impl<'a> Scope<FileView> for Vym<'a> {
         self.rust.has_function(name)
     }
 
-    fn call(&mut self, name : &str, target : &mut FileView) -> io::Result<()> {
-        self.rust.call(name, target)
+    fn call(&mut self, name : &str, target : &mut FileView, key : Key) -> io::Result<()> {
+        self.rust.call(name, target, key)
     }
 }
 
 impl<'a> KeyInput for Vym<'a> {
     fn consume(&mut self, key : Key) -> Option<()> {
-        self.keys.consume(key)
+        match self.rust.state().mode {
+            Mode::Normal => self.normal.consume(key),
+            Mode::Insert => self.insert.consume(key),
+        }
     }
 }

@@ -100,7 +100,7 @@ impl KeyInput for Editor {
             if result.is_some() {
                 for action in file.actions() {
                     if let Action::Mutator(name) = action {
-                        file.call_action(name.as_str());
+                        file.call_action(name.as_str(), key);
                     }
                 }
 

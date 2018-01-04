@@ -110,7 +110,7 @@ pub fn init() {
 
             for action in editor.actions() {
                 if let Action::Mutator(name) = action {
-                    editor.call_action(name.as_str());
+                    editor.call_action(name.as_str(), key);
                 }
             }
         }

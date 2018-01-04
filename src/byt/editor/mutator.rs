@@ -35,8 +35,9 @@ pub trait Scope<T> {
     fn has_function(&self, name : &str) -> bool;
 
     /// Perform the function referred to by `name` on the mutable target.
-    /// Will error if the name has no association.
-    fn call(&mut self, name : &str, target : &mut T) -> io::Result<()>;
+    /// Will error if the name has no association. The key is the key that
+    /// triggered the binding.
+    fn call(&mut self, name : &str, target : &mut T, key : Key) -> io::Result<()>;
 }
 
 /// Stores and allows the invocation of any procedures defined in Rust.
@@ -44,7 +45,7 @@ pub trait Scope<T> {
 /// (usually a struct or even the mutator itself) and the closure's target,
 /// which would be something like the editor or a pane.
 pub struct RustScope<'a, S, T> {
-    map : HashMap<String, Box<Fn(&mut S, &mut T) + 'a>>,
+    map : HashMap<String, Box<Fn(&mut S, &mut T, Key) + 'a>>,
     state : S,
 }
 
@@ -57,13 +58,18 @@ impl<'a, S, T> RustScope<'a, S, T> {
     }
 
     /// Get a reference to the stored state.
-    pub fn get_state(&self) -> &S {
+    pub fn state(&self) -> &S {
         &self.state
     }
 
+    /// Get a reference to the stored state.
+    pub fn state_mut(&mut self) -> &mut S {
+        &mut self.state
+    }
+
     /// Register a closure with a name.
-    pub fn register<F: Fn(&mut S, &mut T) + 'a, N: AsRef<str>>(&mut self, name: N, closure: F) {
-        self.map.insert(String::from(name.as_ref()), Box::new(closure) as Box<Fn(&mut S, &mut T) + 'a>);
+    pub fn register<F: Fn(&mut S, &mut T, Key) + 'a, N: AsRef<str>>(&mut self, name: N, closure: F) {
+        self.map.insert(String::from(name.as_ref()), Box::new(closure) as Box<Fn(&mut S, &mut T, Key) + 'a>);
     }
 }
 
@@ -72,14 +78,14 @@ impl<'a, S, T> Scope<T> for RustScope<'a, S, T> {
         self.map.get(name).is_some()
     }
 
-    fn call(&mut self, name : &str, target : &mut T) -> io::Result<()> {
+    fn call(&mut self, name : &str, target : &mut T, key : Key) -> io::Result<()> {
         let closure = self.map.get(name);
 
         if closure.is_none() {
             return Err(Error::new(ErrorKind::InvalidInput, "Closure not found for name"));
         }
 
-        closure.unwrap()(&mut self.state, target);
+        closure.unwrap()(&mut self.state, target, key);
 
         Ok(())
     }
@@ -126,12 +132,12 @@ impl<T> MutatePair<T>
         &mut self.target
     }
 
-    pub fn call_action(&mut self, name : &str) -> io::Result<()> {
+    pub fn call_action(&mut self, name : &str, key : Key) -> io::Result<()> {
         let mut mutator = self.mutators
             .iter_mut()
             .find(|m| m.has_function(name));
 
-        mutator.unwrap().call(name, &mut self.target)
+        mutator.unwrap().call(name, &mut self.target, key)
     }
 }
 

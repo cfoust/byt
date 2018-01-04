@@ -113,6 +113,12 @@ impl FileView {
         })
     }
 
+    pub fn insert(&mut self, c : char) {
+        self.file.insert(&c.to_string(), self.cursor_loc);
+        self.move_right();
+        self._should_render = true;
+    }
+
     /// Get a reference to the view's PieceFile.
     pub fn get_file(&self) -> &PieceFile {
         &self.file
@@ -137,6 +143,13 @@ impl FileView {
         }
 
         self.cursor_loc = current - 1;
+
+        self._should_render = true;
+    }
+
+    /// Move the cursor down one.
+    pub fn move_down(&mut self) {
+        self.viewport_top = cmp::min(self.viewport_top + 1, (self.lines.len() - 1) as u64);
 
         self._should_render = true;
     }
