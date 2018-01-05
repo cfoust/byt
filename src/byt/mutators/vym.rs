@@ -47,7 +47,7 @@ fn init_vym(vym : &mut Vym) {
     rust.register("vym.down", |state, target, key| {
         target.move_down();
     });
-    normal.bind_action([Key::Char('j')], "vym.left");
+    normal.bind_action([Key::Char('j')], "vym.down");
 
     // ###########
     // INSERT MODE

@@ -182,8 +182,8 @@ impl FileView {
 
     /// Move the cursor right one.
     pub fn move_right(&mut self) {
-        let current = self.cursor_loc;
-        self.cursor_loc = cmp::min(current + 1, self.file.len() + (self.insertion.len() as u64));
+        //self.cursor_loc = cmp::min(current + 1, self.file.len() + (self.insertion.len() as u64));
+        self.cursor_loc += 1;
 
         // TODO: Only need to rerender if the viewport has changed
         // If only the cursor moves then it's fine
@@ -286,6 +286,7 @@ impl render::Renderable for FileView {
                 cursor_col = (cursor_loc - loc + 1) as u16;
 
                 if cursor_col == (line.len() + 1) as u16 {
+                    println!("above {}/{}", cursor_col, line.len());
                     cursor_col -= 1;
                 }
             }
