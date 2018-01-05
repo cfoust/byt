@@ -108,18 +108,21 @@ impl FileView {
     /// Delete the character before the cursor. Works whether or not
     /// you are currently in an insertion.
     pub fn backspace(&mut self) {
+        if self.cursor_loc == 0 {
+            return;
+        }
+
+        self._should_render = true;
+        self.move_left();
+
         if self.insertion.len() > 0 {
             self.insertion.pop();
             return;
         }
 
-        if self.cursor_loc == 0 {
-            return;
+        if self.cursor_loc > 0 {
+            self.file.delete(self.cursor_loc - 1, 1);
         }
-
-        self.file.delete(self.cursor_loc - 1, 1);
-        self.move_left();
-        self._should_render = true;
     }
 
     /// Make a new FileView with an empty, in-memory PieceFile.
@@ -144,7 +147,11 @@ impl FileView {
         }
 
         self.file.insert(self.insertion.as_str(), self.insert_start);
+        self.cursor_loc = self.insert_start + (self.insertion.len() as u64);
+
         self.insertion.clear();
+
+        self._should_render = true;
     }
 
     /// Get a reference to the view's PieceFile.
@@ -176,7 +183,7 @@ impl FileView {
     /// Move the cursor right one.
     pub fn move_right(&mut self) {
         let current = self.cursor_loc;
-        self.cursor_loc = cmp::min(current + 1, self.file.len());
+        self.cursor_loc = cmp::min(current + 1, self.file.len() + (self.insertion.len() as u64));
 
         // TODO: Only need to rerender if the viewport has changed
         // If only the cursor moves then it's fine
