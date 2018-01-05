@@ -72,7 +72,7 @@ fn init_vym(vym : &mut Vym) {
     // inserting the character. This is so we can support arbitrary
     // bindings in insert mode in the future (like vim's Ctrl+r, which
     // can insert content from arbitrary registers).
-    let insert_char = insert.mutator_action("insert_char");
+    let insert_char = insert.mutator_action("vym.insert_char");
     insert.get_root().set_wildcard(insert_char);
     insert.bind_action([Key::Ctrl('c')], "vym.normal");
     insert.bind_action([Key::Esc], "vym.normal");

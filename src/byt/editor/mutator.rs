@@ -137,6 +137,10 @@ impl<T> MutatePair<T>
             .iter_mut()
             .find(|m| m.has_function(name));
 
+        if mutator.is_none() {
+            return Err(Error::new(ErrorKind::InvalidInput, format!("No mutator has '{}'", name)));
+        }
+
         mutator.unwrap().call(name, &mut self.target, key)
     }
 }
