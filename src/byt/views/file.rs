@@ -53,7 +53,13 @@ pub struct FileView {
     /// in particular.
     keys : Keymaster,
 
-    mutators : Vec<Box<mutator::Mutator<FileView>>>,
+    /// Stores an insertion as it happens so that the caller
+    /// doesn't have to worry about batching together single
+    /// keys.
+    insertion : String,
+    /// The start of the current insertion in the file, in bytes.
+    /// Taken from cursor_loc.
+    insert_start : u64,
 }
 
 impl FileView {
@@ -99,6 +105,23 @@ impl FileView {
     // P U B L I C  F U N C T I O N S
     // ###############################
 
+    /// Delete the character before the cursor. Works whether or not
+    /// you are currently in an insertion.
+    pub fn backspace(&mut self) {
+        if self.insertion.len() > 0 {
+            self.insertion.pop();
+            return;
+        }
+
+        if self.cursor_loc == 0 {
+            return;
+        }
+
+        self.file.delete(self.cursor_loc - 1, 1);
+        self.move_left();
+        self._should_render = true;
+    }
+
     /// Make a new FileView with an empty, in-memory PieceFile.
     pub fn empty() -> Result<FileView> {
         Ok(FileView {
@@ -109,19 +132,45 @@ impl FileView {
             lines : Vec::new(),
             _should_render : true,
             keys  : Keymaster::new(),
-            mutators : Vec::new(),
+            insertion : String::new(),
+            insert_start : 0,
         })
     }
 
-    pub fn insert(&mut self, c : char) {
-        self.file.insert(&c.to_string(), self.cursor_loc);
-        self.move_right();
-        self._should_render = true;
+    /// Flush inserted characters to the underlying PieceFile.
+    pub fn done_inserting(&mut self) {
+        if self.insertion.len() == 0 {
+            return;
+        }
+
+        self.file.insert(self.insertion.as_str(), self.insert_start);
+        self.insertion.clear();
     }
 
     /// Get a reference to the view's PieceFile.
-    pub fn get_file(&self) -> &PieceFile {
+    pub fn file(&self) -> &PieceFile {
         &self.file
+    }
+
+    /// Get a mutable reference to the view's PieceFile. Only call this
+    /// if you're sure you know what you're doing.
+    pub fn file_mut(&mut self) -> &mut PieceFile {
+        &mut self.file
+    }
+
+    /// Insert a character into the PieceFile at the offset of the cursor. Does NOT actually insert
+    /// the character into the underlying PieceFile until you call done_inserting().  Note that
+    /// this is making a bit of a gratuitous assumption that all inserts will be done continuously
+    /// in single pieces. This is true in cases like vim where there is a rigid separation between
+    /// modes, but it's bad for editors that always want to be "live".
+    pub fn insert(&mut self, c : char) {
+        if self.insertion.len() == 0 {
+            self.insert_start = self.cursor_loc;
+        }
+
+        self.insertion += &c.to_string();
+        self.move_right();
+        self._should_render = true;
     }
 
     /// Move the cursor right one.
@@ -165,7 +214,8 @@ impl FileView {
             lines : Vec::new(),
             _should_render : true,
             keys  : Keymaster::new(),
-            mutators : Vec::new(),
+            insertion : String::new(),
+            insert_start : 0,
         };
 
         view.regenerate_lines();
@@ -210,7 +260,11 @@ impl render::Renderable for FileView {
         // valid because of the validation done by other methods.
         let (start_offset, length) = self.calculate_viewport(size);
 
-        let text = self.file.read_at(start_offset, length).unwrap();
+        let mut text = self.file.read_at(start_offset, length).unwrap();
+
+        if self.insertion.len() > 0 {
+            text.insert_str((self.insert_start - start_offset) as usize, self.insertion.as_str());
+        }
 
         let cursor_loc = self.cursor_loc - start_offset;
 

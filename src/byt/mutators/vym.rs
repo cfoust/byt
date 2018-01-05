@@ -66,6 +66,7 @@ fn init_vym(vym : &mut Vym) {
     // Transition back to normal mode with normal keybindings.
     rust.register("vym.normal", |state, target, key| {
         state.mode = Mode::Normal;
+        target.done_inserting();
     });
 
     // Insert mode has its own binding table that defaults to just
@@ -76,6 +77,11 @@ fn init_vym(vym : &mut Vym) {
     insert.get_root().set_wildcard(insert_char);
     insert.bind_action([Key::Ctrl('c')], "vym.normal");
     insert.bind_action([Key::Esc], "vym.normal");
+
+    rust.register("vym.backspace", |state, target, key| {
+        target.backspace();
+    });
+    insert.bind_action([Key::Backspace], "vym.backspace");
 }
 
 enum Mode {
