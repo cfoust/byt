@@ -55,18 +55,6 @@ pub fn init() {
     let mut stdout = stdout().into_raw_mode().unwrap();
     let mut screen = AlternateScreen::from(stdout);
 
-    // Make some kind of title screen.
-    {
-        // Get the size of the terminal window.
-        let (rows, cols) = termion::terminal_size().unwrap();
-
-        // For now we just move to the center
-        write!(screen, "{}", Goto(rows / 2, cols / 2));
-        write!(screen, "BYT");
-
-        screen.flush().unwrap();
-    }
-
     let (sender, receiver) = channel::<Event>();
 
     let mut editor = MutatePair::new(editor::Editor::new());

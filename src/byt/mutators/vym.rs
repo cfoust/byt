@@ -1,6 +1,11 @@
 //! byt - vym
 //!
 //! Implement a mutator that mimic's vim's key layout.
+//!
+//! We obviously don't want to implement everything from vim here. The whole point of writing our
+//! own editor is to formulate our own paradigms. For me (cfoust) vim's movement and insertion keys
+//! represent the pinnacle of efficiency. We don't need all of the bells and whistles necessarily,
+//! just enough to facilitate the average programming use case.
 
 // EXTERNS
 
@@ -22,8 +27,13 @@ use byt::io::binds::{Arrow, Keymaster, KeyInput};
 
 fn init_vym(vym : &mut Vym) {
     let mut normal = &mut vym.normal;
-    let mut rust = &mut vym.rust;
+    let mut insert = &mut vym.insert;
+    let mut rust   = &mut vym.rust;
 
+    // ###########
+    // NORMAL MODE
+    // ###########
+    // Initialize the HJKL motions
     rust.register("vym.right", |state, target, key| {
         target.move_right();
     });
@@ -39,24 +49,33 @@ fn init_vym(vym : &mut Vym) {
     });
     normal.bind_action([Key::Char('j')], "vym.left");
 
+    // ###########
+    // INSERT MODE
+    // ###########
     rust.register("vym.insert", |state, target, key| {
         state.mode = Mode::Insert;
     });
+
     rust.register("vym.insert_char", |state, target, key| {
-        if let Key::Ctrl('c') = key {
-            state.mode = Mode::Normal;
-        } else if let Key::Char(c) = key {
+        if let Key::Char(c) = key {
             target.insert(c);
         }
     });
     normal.bind_action([Key::Char('i')], "vym.insert");
 
+    // Transition back to normal mode with normal keybindings.
     rust.register("vym.normal", |state, target, key| {
         state.mode = Mode::Normal;
     });
 
-    let insert_char = vym.insert.mutator_action("vym.insert_char");
-    vym.insert.get_root().set_wildcard(insert_char);
+    // Insert mode has its own binding table that defaults to just
+    // inserting the character. This is so we can support arbitrary
+    // bindings in insert mode in the future (like vim's Ctrl+r, which
+    // can insert content from arbitrary registers).
+    let insert_char = insert.mutator_action("insert_char");
+    insert.get_root().set_wildcard(insert_char);
+    insert.bind_action([Key::Ctrl('c')], "vym.normal");
+    insert.bind_action([Key::Esc], "vym.normal");
 }
 
 enum Mode {
