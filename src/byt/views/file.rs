@@ -184,7 +184,8 @@ impl FileView {
 
     /// Move the cursor right one.
     pub fn move_right(&mut self) {
-        self.cursor_loc += 1;
+        let max = self.file.len() + (self.insertion.len() as u64);
+        self.cursor_loc = cmp::min(self.cursor_loc + 1, max);
 
         // TODO: Only need to rerender if the viewport has changed
         // If only the cursor moves then it's fine
@@ -281,18 +282,29 @@ impl render::Renderable for FileView {
 
         // The file-global cursor offset. This may fall within an imaginary location in
         // the current insertion.
-        let cursor_offset        = self.cursor_loc - start_offset;
+        let mut cursor_offset = self.cursor_loc - start_offset;
+        let mut cursor_placed = false;
         // The calculated screen position of the cursor
         let mut cursor_row : u16 = 1;
         let mut cursor_col : u16 = 1;
 
         for line in text.lines() {
-            cursor_line_offset = cursor_offset - line_offset;
+            if !cursor_placed {
+                cursor_line_offset = cursor_offset - line_offset;
 
-            if cursor_line_offset <= (line.len() as u64) {
-                println!("{}, {}", cursor_row, cursor_col);
-                cursor_row = line_number;
-                cursor_col = (cursor_line_offset + 1) as u16;
+                if cursor_line_offset <= (line.len() as u64) {
+                    cursor_row = line_number;
+                    cursor_col = (cursor_line_offset + 1) as u16;
+                    cursor_placed = true;
+                }
+
+                // I can't believe this fucking works flawlessly.
+                // After beating my head against this problem, here we are.
+                if cursor_line_offset == (line.len() + 1) as u64 {
+                    cursor_row = line_number + 1;
+                    cursor_col = 1;
+                    cursor_placed = true;
+                }
             }
 
             renderer.move_cursor(line_number as u16, 1);
