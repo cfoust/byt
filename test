@@ -1,3 +1,0 @@
-#/usr/bin/env bash
-
-gdb -x panics.gdb target/debug/byt

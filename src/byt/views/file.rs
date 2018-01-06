@@ -176,13 +176,14 @@ impl FileView {
         }
 
         self.insertion += &c.to_string();
+
         self.move_right();
+
         self._should_render = true;
     }
 
     /// Move the cursor right one.
     pub fn move_right(&mut self) {
-        //self.cursor_loc = cmp::min(current + 1, self.file.len() + (self.insertion.len() as u64));
         self.cursor_loc += 1;
 
         // TODO: Only need to rerender if the viewport has changed
@@ -262,9 +263,6 @@ impl Actionable for FileView {
 impl render::Renderable for FileView {
     fn render(&mut self, renderer : &mut render::Renderer, size : (u16, u16)) -> Result<()> {
         let (rows, cols) = size;
-
-        // We can assume that self.cursor_loc and self.viewport_top are
-        // valid because of the validation done by other methods.
         let (start_offset, length) = self.calculate_viewport(size);
 
         let mut text = self.file.read_at(start_offset, length).unwrap();
@@ -273,29 +271,37 @@ impl render::Renderable for FileView {
             text.insert_str((self.insert_start - start_offset) as usize, self.insertion.as_str());
         }
 
-        let cursor_loc = self.cursor_loc - start_offset;
+        let mut line_number = 1;
 
-        let mut counter          = 1;
-        let mut loc              = 0;
+        // The offset of the current line in viewport-local space.
+        let mut line_offset  = 0;
+
+        // The offset of the cursor within the current line
+        let mut cursor_line_offset = 0;
+
+        // The file-global cursor offset. This may fall within an imaginary location in
+        // the current insertion.
+        let cursor_offset        = self.cursor_loc - start_offset;
+        // The calculated screen position of the cursor
         let mut cursor_row : u16 = 1;
         let mut cursor_col : u16 = 1;
 
         for line in text.lines() {
-            if cursor_loc >= loc {
-                cursor_row = counter;
-                cursor_col = (cursor_loc - loc + 1) as u16;
+            cursor_line_offset = cursor_offset - line_offset;
 
-                if cursor_col == (line.len() + 1) as u16 {
-                    println!("above {}/{}", cursor_col, line.len());
-                    cursor_col -= 1;
-                }
+            if cursor_line_offset <= (line.len() as u64) {
+                println!("{}, {}", cursor_row, cursor_col);
+                cursor_row = line_number;
+                cursor_col = (cursor_line_offset + 1) as u16;
             }
 
-            renderer.move_cursor(counter as u16, 1);
+            renderer.move_cursor(line_number as u16, 1);
             renderer.write(line);
 
-            counter += 1;
-            loc += (line.len() + 1) as u64;
+            line_number += 1;
+
+            // Once again we are assuming only \n and not \r\n.
+            line_offset += (line.len() + 1) as u64;
         }
 
         renderer.move_cursor(cursor_row, cursor_col);
