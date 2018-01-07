@@ -112,17 +112,13 @@ impl FileView {
             return;
         }
 
-        self._should_render = true;
-        self.move_left();
-
         if self.insertion.len() > 0 {
             self.insertion.pop();
-            return;
-        }
-
-        if self.cursor_loc > 0 {
+        } else if self.cursor_loc > 0 {
             self.file.delete(self.cursor_loc - 1, 1);
         }
+
+        self.move_left();
     }
 
     /// Make a new FileView with an empty, in-memory PieceFile.
