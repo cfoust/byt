@@ -42,17 +42,17 @@ struct Piece {
     /// The file this piece refers to.
     file : SourceFile,
     /// The offset (in bytes) of the text in this Piece in its file.
-    file_offset : u64,
+    file_offset : usize,
     /// The length of the text in this Piece.
-    length : u64,
+    length : usize,
     /// The logical offset of the Piece.
-    logical_offset : u64,
+    logical_offset : usize,
 }
 
 impl Piece {
     /// Convert a logical offset, which is piece-table global, to an offset
     /// inside the Piece's file.
-    pub fn logical_to_file(&self, offset : u64) -> u64 {
+    pub fn logical_to_file(&self, offset : usize) -> usize {
         return (offset - self.logical_offset) + self.file_offset;
     }
 }
@@ -79,12 +79,12 @@ struct Action {
     /// The operation performed
     op     : Operation,
     /// The logical offset of the beginning of the operation
-    offset : u64,
+    offset : usize,
     /// For a delete operation, contains the pieces deleted
     /// For an insert operation, contains the piece that was inserted
     pieces : Vec<Piece>,
     /// The length (in bytes) of the operation
-    length : u64,
+    length : usize,
     /// These two fields are indicators that the pieces inside can be
     /// merged downwards or upwards when the action is undone.
     merge_down : bool,
@@ -122,9 +122,9 @@ pub struct PieceFile {
     /// we can track `redo`.
     history_offset : usize,
     /// The total size (in bytes) of the PieceFile.
-    length : u64,
+    length : usize,
     /// The current offset for reads.
-    offset : u64,
+    offset : usize,
     /// Stores all current Pieces.
     piece_table : Vec<Piece>,
     /// The seekable file reader.
@@ -156,12 +156,12 @@ impl PieceFile {
     // #################################
     /// Delete some text. Returns an action that represents
     /// the deletion.
-    fn _delete(&mut self, offset : u64, length : u64) -> Action {
+    fn _delete(&mut self, offset : usize, length : usize) -> Action {
         let start_offset = offset;
         let end_offset   = offset + length;
         let start_index  = self.get_at_offset(start_offset);
         let end_index    = self.get_at_offset(end_offset);
-        let delete_size  = ((end_index - start_index) as u64) + 1;
+        let delete_size  = ((end_index - start_index) as usize) + 1;
         let num_pieces   = (end_index - start_index) + 1;
 
         let mut action = Action {
@@ -289,7 +289,7 @@ impl PieceFile {
     }
 
     /// Get a Piece at a particular offset.
-    fn get_at_offset(&self, offset : u64) -> usize {
+    fn get_at_offset(&self, offset : usize) -> usize {
         // TODO rewrite to be binary search as we have logical
         // offsets now
         for index in 0..self.piece_table.len() {
@@ -312,9 +312,9 @@ impl PieceFile {
 
     /// Insert some text. Returns the action corresponding
     /// to the insert.
-    pub fn _insert(&mut self, text : &str, offset : u64) -> Action {
-        let length = text.len() as u64;
-        let append_offset = self.append_file.len() as u64;
+    pub fn _insert(&mut self, text : &str, offset : usize) -> Action {
+        let length = text.len() as usize;
+        let append_offset = self.append_file.len() as usize;
 
         self.append_file += text;
         self.length      += length;
@@ -398,9 +398,9 @@ impl PieceFile {
     /// Reads characters from a piece into a destination string.
     /// The `offset` refers to logical offset in the whole piece
     /// table, not file-specific offset.
-    fn read_piece(&mut self, piece : Piece, offset : u64, num_bytes : u64, dest : &mut String) {
+    fn read_piece(&mut self, piece : Piece, offset : usize, num_bytes : usize, dest : &mut String) {
         let piece_start_offset = piece.logical_offset;
-        let mut buf            = vec![0 as u8; num_bytes as usize];
+        let mut buf            = vec![0 as u8; num_bytes];
 
         match piece.file {
             SourceFile::Append => {
@@ -409,19 +409,19 @@ impl PieceFile {
                 let append_bytes        = self.append_file.as_bytes();
 
                 if append_start_offset == append_end_offset {
-                    let byte = append_bytes.get(append_start_offset as usize).unwrap();
+                    let byte = append_bytes.get(append_start_offset).unwrap();
                     buf[0] = *byte;
                 } else {
                     let append_slice = append_bytes
-                        .get(append_start_offset as usize ..
-                             append_end_offset as usize)
+                        .get(append_start_offset ..
+                             append_end_offset)
                         .unwrap();
                     buf.copy_from_slice(append_slice);
                 }
             },
             SourceFile::Original => {
                 let reader = self.reader.as_mut().unwrap();
-                reader.seek(SeekFrom::Start(piece.logical_to_file(offset)));
+                reader.seek(SeekFrom::Start(piece.logical_to_file(offset) as u64));
                 reader.read(buf.as_mut_slice()).unwrap();
             },
         }
@@ -479,7 +479,7 @@ impl PieceFile {
     // ###############################
 
     /// Delete some bytes in the PieceFile.
-    pub fn delete(&mut self, offset : u64, length : u64) {
+    pub fn delete(&mut self, offset : usize, length : usize) {
         let action = self._delete(offset, length);
         self.remove_newer_history();
         self.actions.push(action);
@@ -502,7 +502,7 @@ impl PieceFile {
 
     /// Insert some text. Returns the action corresponding
     /// to the insert.
-    pub fn insert(&mut self, text : &str, offset : u64) {
+    pub fn insert(&mut self, text : &str, offset : usize) {
         let action = self._insert(text, offset);
         self.remove_newer_history();
         self.actions.push(action);
@@ -510,7 +510,7 @@ impl PieceFile {
 
     /// Save the PieceFile's contents to disk. Returns
     /// the number of bytes written.
-    pub fn save(&mut self) -> io::Result<(u64)> {
+    pub fn save(&mut self) -> io::Result<usize> {
         if self.reader.is_none() {
             return Err(Error::new(ErrorKind::InvalidInput, "Empty PieceFile"));
         }
@@ -524,12 +524,12 @@ impl PieceFile {
         let mut file = self.reader.as_ref().unwrap().get_ref();
         file.write_all(text.as_bytes())?;
 
-        Ok((file.metadata().unwrap().len()))
+        Ok(self.len())
     }
 
     /// Save the PieceFile to disk given a filename. Return the
     /// number of bytes written.
-    pub fn save_as(&mut self, filename : &str) -> io::Result<(u64)> {
+    pub fn save_as(&mut self, filename : &str) -> io::Result<usize> {
         let length = self.len();
         let text   = self.read_at(0, length)?;
 
@@ -540,7 +540,7 @@ impl PieceFile {
 
         file.write_all(text.as_bytes())?;
 
-        Ok((file.metadata().unwrap().len()))
+        Ok(length)
     }
 
     /// Check if this PieceFile refers to any file.
@@ -556,7 +556,7 @@ impl PieceFile {
             .open(path).unwrap();
 
         // Get the length of the file to initialize the first Piece
-        let size = file.metadata().unwrap().len() as u64;
+        let size = file.metadata().unwrap().len() as usize;
 
         let mut piece_file = PieceFile {
             actions        : Vec::new(),
@@ -571,14 +571,14 @@ impl PieceFile {
         piece_file.piece_table.push(Piece {
             file : SourceFile::Original,
             file_offset : 0,
-            length : size as u64,
+            length : size as usize,
             logical_offset : 0,
         });
 
         Ok(Box::new(piece_file))
     }
 
-    pub fn len(&self) -> u64 {
+    pub fn len(&self) -> usize {
         self.length
     }
 
@@ -587,7 +587,7 @@ impl PieceFile {
     /// If taking the provided number of bytes would result in a panic
     /// (i.e if it falls on a UTF8 grapheme boundary) then it takes
     /// one grapheme fewer.
-    pub fn read(&mut self, num_bytes : u64) -> io::Result<Box<String>> {
+    pub fn read(&mut self, num_bytes : usize) -> io::Result<Box<String>> {
         let mut result = Box::new(String::new());
 
         if num_bytes == 0 {
@@ -622,8 +622,8 @@ impl PieceFile {
 
         // 2. Handle all of the pieces between the first and the last.
         if num_pieces > 2 {
-            let mut piece_read_bytes   : u64;
-            let mut piece_start_offset : u64;
+            let mut piece_read_bytes   : usize;
+            let mut piece_start_offset : usize;
 
             for index in start_index + 1 .. end_index {
                 // TODO move this allocation out?
@@ -661,8 +661,8 @@ impl PieceFile {
     }
 
     /// Read bytes from an offset.
-    pub fn read_at(&mut self, offset : u64, num_bytes : u64) -> io::Result<Box<String>> {
-        self.seek(SeekFrom::Start(offset));
+    pub fn read_at(&mut self, offset : usize, num_bytes : usize) -> io::Result<Box<String>> {
+        self.seek(SeekFrom::Start(offset as u64));
         self.read(num_bytes)
     }
 
@@ -815,8 +815,8 @@ impl Seek for PieceFile {
             panic!("Seek offset less than 0");
         }
 
-        self.offset = new_offset as u64;
+        self.offset = new_offset as usize;
 
-        Ok(self.offset)
+        Ok(self.offset as u64)
     }
 }
