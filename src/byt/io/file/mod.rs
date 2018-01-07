@@ -141,12 +141,12 @@ impl fmt::Display for PieceFile {
         for piece in &self.piece_table {
             write!(f, "{}\n", piece);
         }
-        write!(f, "end piece table");
-        write!(f, "actions len({})\n", self.actions.len());
-        for action in &self.actions {
-            write!(f, "{}\n", action);
-        }
-        write!(f, "end actions")
+        write!(f, "end piece table")
+        //write!(f, "actions len({})\n", self.actions.len());
+        //for action in &self.actions {
+            //write!(f, "{}\n", action);
+        //}
+        //write!(f, "end actions")
     }
 }
 
@@ -216,6 +216,8 @@ impl PieceFile {
                     logical_offset : piece.logical_offset,
                 });
             }
+
+            self.update_offsets(start_index);
 
             return action;
         }
@@ -450,19 +452,22 @@ impl PieceFile {
 
     /// Update the logical offsets starting at a certain index.
     fn update_offsets(&mut self, start_index : usize) {
-        if self.piece_table.len() == 0 {
-            return;
-        }
+        let length = self.piece_table.len();
 
         // Don't do anything if this is the last index
-        if start_index == self.piece_table.len() - 1 {
+        if length == 0 || start_index >= length {
             return;
         }
 
-        let mut offset = self.piece_table[start_index].logical_offset +
-            self.piece_table[start_index].length;
+        // Don't trust the logical offset of the first piece if
+        // we're updating from that.
+        let mut offset = if start_index == 0 {
+            0
+        } else {
+            self.piece_table[start_index].logical_offset
+        };
 
-        for index in start_index + 1 .. self.piece_table.len() {
+        for index in start_index .. self.piece_table.len() {
             let piece = &mut self.piece_table[index];
             piece.logical_offset = offset;
             offset += piece.length;

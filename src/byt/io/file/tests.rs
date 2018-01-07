@@ -132,6 +132,20 @@ fn it_inserts_little_pieces() {
     assert_eq!(read.as_str(), "abaaa");
 }
 
+
+#[test]
+fn it_deletes_backwards() {
+    let mut file = PieceFile::empty().unwrap();
+
+    file.insert("hhhh", 0);
+    file.delete(2, 1);
+    file.delete(1, 1);
+    file.delete(0, 1);
+
+    let read = file.read(1).unwrap();
+    assert_eq!(read.as_str(), "h");
+}
+
 #[test]
 fn it_deletes_across_two_pieces() {
     let mut file = PieceFile::empty().unwrap();
