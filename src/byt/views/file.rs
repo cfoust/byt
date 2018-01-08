@@ -108,17 +108,20 @@ impl FileView {
         (viewport_loc, cmp::min((rows * cols) as usize, self.file.len()))
     }
 
-    /// Get the current line.
-    fn current_line(&self) -> &Line {
+    /// Get the current line and its index.
+    fn current_line(&self) -> (usize, &Line) {
         let offset = self.cursor_offset;
 
+        let mut index = 0;
         for line in self.lines.iter() {
             if offset >= line.start() && offset < line.end() {
-                return &line;
+                return (index, &line);
             }
+
+            index += 1;
         }
 
-        return &self.lines[0];
+        return (0, &self.lines[0]);
     }
 
     /// Rebuild self.lines to have the proper line locations.
@@ -129,12 +132,25 @@ impl FileView {
 
         self.lines.clear();
 
+        // Base case when the file is empty.
+        if length == 0 {
+            self.lines.push(Line {
+                offset             : 0,
+                content_length     : 0,
+                line_ending_length : 0,
+            });
+
+            return;
+        }
+
         let mut offset : usize           = 0;
+        let mut line_offset : usize      = 0;
         let mut num_chars : usize        = 0;
         let mut num_ending_chars : usize = 0;
 
         for (index, byte) in text.char_indices() {
             match byte {
+                // TODO make sure these are sequential
                 '\r' => {
                     num_ending_chars += 1;
                 },
@@ -142,11 +158,12 @@ impl FileView {
                     num_ending_chars += 1;
 
                     self.lines.push(Line {
-                        offset,
+                        offset             : line_offset,
                         content_length     : num_chars,
                         line_ending_length : num_ending_chars,
                     });
 
+                    line_offset      = offset + num_ending_chars;
                     num_chars        = 0;
                     num_ending_chars = 0;
                 },
@@ -156,6 +173,14 @@ impl FileView {
             }
 
             offset += 1;
+        }
+
+        if num_chars > 0 {
+            self.lines.push(Line {
+                offset             : line_offset,
+                content_length     : num_chars,
+                line_ending_length : 0,
+            });
         }
     }
 
@@ -181,7 +206,7 @@ impl FileView {
 
     /// Make a new FileView with an empty, in-memory PieceFile.
     pub fn empty() -> Result<FileView> {
-        Ok(FileView {
+        let mut view = FileView {
             path : Option::None,
             file : PieceFile::empty().unwrap(),
             cursor_offset : 0,
@@ -191,7 +216,11 @@ impl FileView {
             keys  : Keymaster::new(),
             insertion : String::new(),
             insert_start : 0,
-        })
+        };
+
+        view.regenerate_lines();
+
+        Ok(view)
     }
 
     /// Flush inserted characters to the underlying PieceFile.
@@ -202,9 +231,8 @@ impl FileView {
 
         self.file.insert(self.insertion.as_str(), self.insert_start);
         self.cursor_offset = self.insert_start + (self.insertion.len() as usize);
-
         self.insertion.clear();
-
+        self.regenerate_lines();
         self._should_render = true;
     }
 
@@ -236,14 +264,26 @@ impl FileView {
         self._should_render = true;
     }
 
-    /// Move the cursor right one.
-    pub fn move_right(&mut self) {
-        let max = self.file.len() + (self.insertion.len() as usize);
-        self.cursor_offset = cmp::min(self.cursor_offset + 1, max);
+    /// Move the cursor a number of lines according to a delta.
+    /// Negative numbers move the cursor more towards the top of
+    /// the screen.
+    pub fn move_lines(&mut self, delta : i64) {
+        let (line_index, _) = self.current_line();
+        // The distance of the cursor from the line's beginning.
+        let current_column    = self.cursor_offset - self.lines[line_index].start();
+        let num_lines = (self.lines.len() as i64);
 
-        // TODO: Only need to rerender if the viewport has changed
-        // If only the cursor moves then it's fine
+        // Calculate the bounded result of the move.
+        let dest_index  = cmp::max(0, cmp::min(num_lines - 1, (line_index as i64) + delta)) as usize;
+        let dest_column = cmp::min(self.lines[dest_index].content_length, current_column);
+
+        self.cursor_offset  = dest_column + self.lines[dest_index].start();
         self._should_render = true;
+    }
+
+    /// Move the cursor down one.
+    pub fn move_down(&mut self) {
+        self.move_lines(1);
     }
 
     /// Move the cursor left one.
@@ -259,10 +299,19 @@ impl FileView {
         self._should_render = true;
     }
 
-    /// Move the cursor down one.
-    pub fn move_down(&mut self) {
+    /// Move the cursor right one.
+    pub fn move_right(&mut self) {
+        let max = self.file.len() + (self.insertion.len() as usize);
+        self.cursor_offset = cmp::min(self.cursor_offset + 1, max);
 
+        // TODO: Only need to rerender if the viewport has changed
+        // If only the cursor moves then it's fine
         self._should_render = true;
+    }
+
+    /// Move the cursor up one.
+    pub fn move_up(&mut self) {
+        self.move_lines(-1);
     }
 
     /// Make a new FileView with a predefined path. Does not attempt to open the file
