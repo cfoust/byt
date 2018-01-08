@@ -56,31 +56,27 @@ fn init_vym(vym : &mut Vym) {
 
     // Append to end of line
     rust.register("vym.append", |state, target, key| {
-        let mut offset : usize;
-
-        {
-            let (_, line) = target.current_line();
-            offset = line.content_end();
-        }
-
-        target.set_cursor(offset);
+        target.goto_line_end();
         state.insert_mode();
     });
     normal.bind_action([Key::Char('A')], "vym.append");
 
     // Prepend at beginning of line
     rust.register("vym.prepend", |state, target, key| {
-        let mut offset : usize;
-
-        {
-            let (_, line) = target.current_line();
-            offset = line.start();
-        }
-
-        target.set_cursor(offset);
+        target.goto_line_start();
         state.insert_mode();
     });
     normal.bind_action([Key::Char('I')], "vym.prepend");
+
+    rust.register("vym.0", |state, target, key| {
+        target.goto_line_start();
+    });
+    normal.bind_action([Key::Char('0')], "vym.0");
+
+    rust.register("vym.$", |state, target, key| {
+        target.goto_line_end();
+    });
+    normal.bind_action([Key::Char('$')], "vym.$");
 
     // ###########
     // INSERT MODE

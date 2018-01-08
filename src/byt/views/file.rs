@@ -252,6 +252,30 @@ impl FileView {
         &mut self.file
     }
 
+    /// Move the cursor to the beginning of the line.
+    pub fn goto_line_end(&mut self) {
+        let mut offset : usize;
+
+        {
+            let (_, line) = self.current_line();
+            offset = line.content_end();
+        }
+
+        self.set_cursor(offset);
+    }
+
+    /// Move the cursor to the beginning of the line.
+    pub fn goto_line_start(&mut self) {
+        let mut offset : usize;
+
+        {
+            let (_, line) = self.current_line();
+            offset = line.start();
+        }
+
+        self.set_cursor(offset);
+    }
+
     /// Insert a character into the PieceFile at the offset of the cursor. Does NOT actually insert
     /// the character into the underlying PieceFile until you call done_inserting().  Note that
     /// this is making a bit of a gratuitous assumption that all inserts will be done continuously
