@@ -62,7 +62,10 @@ fn init_vym(vym : &mut Vym) {
     });
 
     rust.register("vym.insert_char", |state, target, key| {
-        if let Key::Char(c) = key {
+        if let Key::Char('\t') = key {
+            target.insert(' ');
+            target.insert(' ');
+        } else if let Key::Char(c) = key {
             target.insert(c);
         }
     });
