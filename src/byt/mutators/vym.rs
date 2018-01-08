@@ -68,11 +68,13 @@ fn init_vym(vym : &mut Vym) {
     });
     normal.bind_action([Key::Char('I')], "vym.prepend");
 
+    // Moves to the beginning of the line.
     rust.register("vym.0", |state, target, key| {
         target.goto_line_start();
     });
     normal.bind_action([Key::Char('0')], "vym.0");
 
+    // Moves to the end of the line.
     rust.register("vym.$", |state, target, key| {
         target.goto_line_end();
     });
@@ -97,7 +99,7 @@ fn init_vym(vym : &mut Vym) {
 
     // Transition back to normal mode with normal keybindings.
     rust.register("vym.normal", |state, target, key| {
-        state.mode = Mode::Normal;
+        state.normal_mode();
         target.done_inserting();
     });
 
@@ -106,7 +108,9 @@ fn init_vym(vym : &mut Vym) {
     // bindings in insert mode in the future (like vim's Ctrl+r, which
     // can insert content from arbitrary registers).
     let insert_char = insert.mutator_action("vym.insert_char");
+
     insert.get_root().set_wildcard(insert_char);
+
     insert.bind_action([Key::Ctrl('c')], "vym.normal");
     insert.bind_action([Key::Esc], "vym.normal");
 
@@ -135,6 +139,11 @@ impl VymState {
     /// Change to insert mode.
     pub fn insert_mode(&mut self) {
         self.mode = Mode::Insert;
+    }
+
+    /// Change to normal mode.
+    pub fn normal_mode(&mut self) {
+        self.mode = Mode::Normal;
     }
 }
 
