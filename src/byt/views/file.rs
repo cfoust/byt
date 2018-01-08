@@ -29,7 +29,7 @@ use byt::io::binds::KeyInput;
 
 #[derive(Debug, Clone)]
 /// Stores information about a line of text in the file.
-struct Line {
+pub struct Line {
     /// The line's offset in the file.
     offset : usize,
     /// The length of the line in bytes without its line ending characters.
@@ -41,17 +41,22 @@ struct Line {
 
 impl Line {
     /// Get the offset of the end of the line.
-    fn end(&self) -> usize {
+    pub fn content_end(&self) -> usize {
+        self.offset + self.content_length
+    }
+
+    /// Get the offset of the end of the line.
+    pub fn end(&self) -> usize {
         self.offset + self.len()
     }
 
     /// Get the effective length of the line in bytes.
-    fn len(&self) -> usize {
+    pub fn len(&self) -> usize {
         self.content_length + self.line_ending_length
     }
 
     /// Get the offset of the start of the line.
-    fn start(&self) -> usize {
+    pub fn start(&self) -> usize {
         self.offset
     }
 }
@@ -106,22 +111,6 @@ impl FileView {
         // at some point. For the time being I don't feel like
         // implementing it.
         (viewport_loc, cmp::min((rows * cols) as usize, self.file.len()))
-    }
-
-    /// Get the current line and its index.
-    fn current_line(&self) -> (usize, &Line) {
-        let offset = self.cursor_offset;
-
-        let mut index = 0;
-        for line in self.lines.iter() {
-            if offset >= line.start() && offset < line.end() {
-                return (index, &line);
-            }
-
-            index += 1;
-        }
-
-        return (0, &self.lines[0]);
     }
 
     /// Rebuild self.lines to have the proper line locations.
@@ -202,6 +191,22 @@ impl FileView {
         }
 
         self.move_left();
+    }
+
+    /// Get the current line and its index.
+    pub fn current_line(&self) -> (usize, &Line) {
+        let offset = self.cursor_offset;
+
+        let mut index = 0;
+        for line in self.lines.iter() {
+            if offset >= line.start() && offset < line.end() {
+                return (index, &line);
+            }
+
+            index += 1;
+        }
+
+        return (0, &self.lines[0]);
     }
 
     /// Make a new FileView with an empty, in-memory PieceFile.
@@ -336,8 +341,8 @@ impl FileView {
 
     /// Set the cursor's location in the file.
     pub fn set_cursor(&mut self, loc : usize) -> Result<()> {
-        self.cursor_offset = cmp::min(loc, self.file.len());
-
+        self.cursor_offset = cmp::max(0, cmp::min(loc, self.file.len()));
+        self._should_render = true;
         Ok(())
     }
 
