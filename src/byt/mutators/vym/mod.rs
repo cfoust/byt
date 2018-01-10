@@ -14,6 +14,7 @@ use termion::event::Key;
 use std::io;
 
 // SUBMODULES
+mod tests;
 
 // LOCAL INCLUDES
 use byt::editor::mutator::*;
