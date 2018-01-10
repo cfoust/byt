@@ -15,6 +15,7 @@ use std::io;
 use termion::event::Key;
 
 // SUBMODULES
+mod tests;
 
 // LOCAL INCLUDES
 use byt::io::binds::Keymaster;
@@ -217,13 +218,27 @@ impl FileView {
             return;
         }
 
-        if self.cursor_offset >= offset && self.cursor_offset < offset + num_bytes {
+        if self.cursor_offset >= offset && self.cursor_offset <= offset + num_bytes {
             self.cursor_offset = offset;
         }
 
         self.file.delete(offset, num_bytes);
         self.regenerate_lines();
         self._should_render = true;
+    }
+
+    /// Delete the current line.
+    pub fn delete_current_line(&mut self) {
+        let mut offset : usize;
+        let mut length : usize;
+
+        {
+            let (_, line) = self.current_line();
+            offset = line.start();
+            length = line.len();
+        }
+
+        self.delete(offset, length);
     }
 
     /// Make a new FileView with an empty, in-memory PieceFile.
@@ -308,6 +323,21 @@ impl FileView {
         self.move_right();
 
         self._should_render = true;
+    }
+
+    /// Insert a string at the offset of the cursor. Unlike `insert()`, this does
+    /// not require calling `done_inserting`.
+    pub fn insert_str<N: AsRef<str>>(&mut self, text: N) {
+        let text = text.as_ref();
+        self.file.insert(text, self.cursor_offset);
+        self.regenerate_lines();
+        self.cursor_offset += text.len();
+    }
+
+    /// Get the length of the file in this view including the current insertion (i.e
+    /// text that was inserted if `done_inserting` has not been called yet).
+    pub fn len(&self) -> usize {
+        self.insertion.len() + self.file.len()
     }
 
     /// Move the cursor a number of lines according to a delta.
