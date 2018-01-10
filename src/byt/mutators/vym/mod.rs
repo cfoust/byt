@@ -36,22 +36,22 @@ fn init_vym(vym : &mut Vym) {
     // ###########
     // Initialize the HJKL motions
     rust.register("vym.right", |state, target, key| {
-        target.move_right();
+        target.move_cursor_right();
     });
     normal.bind_action([Key::Char('l')], "vym.right");
 
     rust.register("vym.left", |state, target, key| {
-        target.move_left();
+        target.move_cursor_left();
     });
     normal.bind_action([Key::Char('h')], "vym.left");
 
     rust.register("vym.down", |state, target, key| {
-        target.move_down();
+        target.move_cursor_down();
     });
     normal.bind_action([Key::Char('j')], "vym.down");
 
     rust.register("vym.up", |state, target, key| {
-        target.move_up();
+        target.move_cursor_up();
     });
     normal.bind_action([Key::Char('k')], "vym.up");
 
@@ -81,18 +81,30 @@ fn init_vym(vym : &mut Vym) {
     });
     normal.bind_action([Key::Char('$')], "vym.$");
 
+    // Move the viewport up and down
+    rust.register("vym.viewport_up", |state, target, key| {
+        target.move_viewport(-1);
+    });
+    normal.bind_action([Key::Ctrl('y')], "vym.viewport_up");
+
+    rust.register("vym.viewport_down", |state, target, key| {
+        target.move_viewport(1);
+    });
+    normal.bind_action([Key::Ctrl('e')], "vym.viewport_down");
+
+    rust.register("vym.to_file_end", |state, target, key| {
+        target.move_cursor_to_end();
+    });
+    normal.bind_action([Key::Char('G')], "vym.to_file_end");
+
+    rust.register("vym.to_file_start", |state, target, key| {
+        target.move_cursor_to_start();
+    });
+    normal.bind_action([Key::Char('g'), Key::Char('g')], "vym.to_file_start");
+
     // Moves to the end of the line.
     rust.register("vym.delete_line", |state, target, key| {
-        let mut offset : usize;
-        let mut length : usize;
-
-        {
-            let (_, line) = target.current_line();
-            offset = line.start();
-            length = line.len();
-        }
-
-        target.delete(offset, length);
+        target.delete_current_line();
     });
     normal.bind_action([Key::Char('d'), Key::Char('d')], "vym.delete_line");
 
@@ -116,7 +128,6 @@ fn init_vym(vym : &mut Vym) {
     // Transition back to normal mode with normal keybindings.
     rust.register("vym.normal", |state, target, key| {
         state.normal_mode();
-        target.done_inserting();
     });
 
     // Insert mode has its own binding table that defaults to just
