@@ -91,6 +91,7 @@ pub struct FileView {
     /// doesn't have to worry about batching together single
     /// keys.
     insertion : String,
+
     /// The start of the current insertion in the file, in bytes.
     /// Taken from cursor_offset.
     insert_start : usize,
@@ -209,6 +210,22 @@ impl FileView {
         return (0, &self.lines[0]);
     }
 
+    /// Delete the character before the cursor. Works whether or not
+    /// you are currently in an insertion.
+    pub fn delete(&mut self, offset : usize, num_bytes : usize) {
+        if offset < 0 || offset >= self.file.len() {
+            return;
+        }
+
+        if self.cursor_offset >= offset && self.cursor_offset < offset + num_bytes {
+            self.cursor_offset = offset;
+        }
+
+        self.file.delete(offset, num_bytes);
+        self.regenerate_lines();
+        self._should_render = true;
+    }
+
     /// Make a new FileView with an empty, in-memory PieceFile.
     pub fn empty() -> Result<FileView> {
         let mut view = FileView {
@@ -235,7 +252,7 @@ impl FileView {
         }
 
         self.file.insert(self.insertion.as_str(), self.insert_start);
-        self.cursor_offset = self.insert_start + (self.insertion.len() as usize);
+        self.cursor_offset = self.insert_start + self.insertion.len();
         self.insertion.clear();
         self.regenerate_lines();
         self._should_render = true;

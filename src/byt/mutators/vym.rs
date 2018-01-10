@@ -80,6 +80,21 @@ fn init_vym(vym : &mut Vym) {
     });
     normal.bind_action([Key::Char('$')], "vym.$");
 
+    // Moves to the end of the line.
+    rust.register("vym.delete_line", |state, target, key| {
+        let mut offset : usize;
+        let mut length : usize;
+
+        {
+            let (_, line) = target.current_line();
+            offset = line.start();
+            length = line.len();
+        }
+
+        target.delete(offset, length);
+    });
+    normal.bind_action([Key::Char('d'), Key::Char('d')], "vym.delete_line");
+
     // ###########
     // INSERT MODE
     // ###########

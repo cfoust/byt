@@ -9,6 +9,7 @@
 // EXTERNS
 
 // LIBRARY INCLUDES
+use std::env;
 use std::io::{Write, stdout, stdin};
 use std::sync::mpsc::channel;
 use std::thread;
@@ -54,11 +55,17 @@ pub fn render(mut screen : &mut Write, editor : &mut MutatePair<Editor>) {
 pub fn init() {
     let mut stdout = stdout().into_raw_mode().unwrap();
     let mut screen = AlternateScreen::from(stdout);
+    let mut arguments = env::args();
 
     let (sender, receiver) = channel::<Event>();
 
     let mut editor = MutatePair::new(editor::Editor::new());
-    editor.target_mut().open_empty();
+
+    if arguments.len() > 1 {
+        editor.target_mut().open(arguments.nth(1).unwrap().as_str());
+    } else {
+        editor.target_mut().open_empty();
+    }
 
     editor
         .target_mut()

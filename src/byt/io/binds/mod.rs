@@ -249,6 +249,7 @@ impl Keymaster {
         match *next {
             Arrow::Function(ref action) => {
                 self.actions.push(action.clone());
+                self.to_root();
             },
             // Move to the table's state.
             Arrow::Table(ref table) => {
