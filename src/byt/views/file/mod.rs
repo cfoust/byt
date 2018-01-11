@@ -13,6 +13,7 @@ use std::io::SeekFrom;
 use std::io::{BufReader, ErrorKind, Error, Result};
 use std::io;
 use termion::event::Key;
+use termion;
 
 // SUBMODULES
 mod tests;
@@ -80,9 +81,13 @@ pub struct FileView {
     /// Regenerated after insertion or deletion.
     lines : Vec<Line>,
 
-    /// Whether or not this view should be rendered after
+    /// Whether or not the file's lines should be rendered after
     /// the next event.
-    _should_render : bool,
+    render_lines : bool,
+    /// Whether or not the cursor has moved. We often don't need
+    /// to rerender the lines, just the cursor, so this saves us
+    /// some work.
+    render_cursor : bool,
 
     /// Stores and interprets keybindings for this buffer
     /// in particular.
@@ -193,6 +198,7 @@ impl FileView {
         }
 
         self.move_left();
+        self.render_lines = true;
     }
 
     /// Get the current line and its index.
@@ -219,12 +225,12 @@ impl FileView {
         }
 
         if self.cursor_offset >= offset && self.cursor_offset <= offset + num_bytes {
-            self.cursor_offset = offset;
+            self.set_cursor(offset);
         }
 
         self.file.delete(offset, num_bytes);
         self.regenerate_lines();
-        self._should_render = true;
+        self.render_lines = true;
     }
 
     /// Delete the current line.
@@ -249,7 +255,8 @@ impl FileView {
             cursor_offset : 0,
             viewport_top : 0,
             lines : Vec::new(),
-            _should_render : true,
+            render_lines : true,
+            render_cursor : true,
             keys  : Keymaster::new(),
             insertion : String::new(),
             insert_start : 0,
@@ -262,15 +269,17 @@ impl FileView {
 
     /// Flush inserted characters to the underlying PieceFile.
     pub fn done_inserting(&mut self) {
-        if self.insertion.len() == 0 {
+        if self.insertion.is_empty() {
             return;
         }
 
         self.file.insert(self.insertion.as_str(), self.insert_start);
-        self.cursor_offset = self.insert_start + self.insertion.len();
+        let insert_length = self.insertion.len();
+        let insert_start  = self.insert_start;
+        self.set_cursor(insert_start + insert_length);
         self.insertion.clear();
         self.regenerate_lines();
-        self._should_render = true;
+        self.render_lines = true;
     }
 
     /// Get a reference to the view's PieceFile.
@@ -314,7 +323,7 @@ impl FileView {
     /// in single pieces. This is true in cases like vim where there is a rigid separation between
     /// modes, but it's bad for editors that always want to be "live".
     pub fn insert(&mut self, c : char) {
-        if self.insertion.len() == 0 {
+        if self.insertion.is_empty() {
             self.insert_start = self.cursor_offset;
         }
 
@@ -322,16 +331,17 @@ impl FileView {
 
         self.move_right();
 
-        self._should_render = true;
+        self.render_lines = true;
     }
 
     /// Insert a string at the offset of the cursor. Unlike `insert()`, this does
     /// not require calling `done_inserting`.
     pub fn insert_str<N: AsRef<str>>(&mut self, text: N) {
         let text = text.as_ref();
-        self.file.insert(text, self.cursor_offset);
+        let cursor_offset = self.cursor_offset;
+        self.file.insert(text, cursor_offset);
         self.regenerate_lines();
-        self.cursor_offset += text.len();
+        self.set_cursor(cursor_offset + text.len());
     }
 
     /// Get the length of the file in this view including the current insertion (i.e
@@ -353,8 +363,9 @@ impl FileView {
         let dest_index  = cmp::max(0, cmp::min(num_lines - 1, (line_index as i64) + delta)) as usize;
         let dest_column = cmp::min(self.lines[dest_index].content_length, current_column);
 
-        self.cursor_offset  = dest_column + self.lines[dest_index].start();
-        self._should_render = true;
+        let line_start = self.lines[dest_index].start();
+        self.set_cursor(dest_column + line_start);
+        self.render_cursor = true;
     }
 
     /// Move the cursor down one.
@@ -370,19 +381,15 @@ impl FileView {
             return;
         }
 
-        self.cursor_offset = current - 1;
-
-        self._should_render = true;
+        self.set_cursor(current - 1);
     }
 
     /// Move the cursor right one.
     pub fn move_right(&mut self) {
-        let max = self.file.len() + (self.insertion.len() as usize);
-        self.cursor_offset = cmp::min(self.cursor_offset + 1, max);
+        let max           = self.file.len() + (self.insertion.len() as usize);
+        let cursor_offset = self.cursor_offset;
 
-        // TODO: Only need to rerender if the viewport has changed
-        // If only the cursor moves then it's fine
-        self._should_render = true;
+        self.set_cursor(cmp::min(cursor_offset + 1, max));
     }
 
     /// Move the cursor up one.
@@ -399,7 +406,8 @@ impl FileView {
             cursor_offset : 0,
             viewport_top : 0,
             lines : Vec::new(),
-            _should_render : true,
+            render_lines : true,
+            render_cursor : true,
             keys  : Keymaster::new(),
             insertion : String::new(),
             insert_start : 0,
@@ -412,8 +420,8 @@ impl FileView {
 
     /// Set the cursor's location in the file.
     pub fn set_cursor(&mut self, loc : usize) -> Result<()> {
-        self.cursor_offset = cmp::max(0, cmp::min(loc, self.file.len()));
-        self._should_render = true;
+        self.cursor_offset = loc;
+        self.render_cursor = true;
         Ok(())
     }
 
@@ -422,6 +430,7 @@ impl FileView {
     pub fn set_viewport_top(&mut self, line : usize) -> Result<()> {
         // TODO: input validation
         self.viewport_top = cmp::min(line, (self.lines.len() - 1) as usize);
+        self.render_lines = true;
 
         Ok(())
     }
@@ -466,6 +475,10 @@ impl render::Renderable for FileView {
         let mut cursor_row : u16 = 1;
         let mut cursor_col : u16 = 1;
 
+        if self.render_lines {
+            renderer.write(format!("{}", termion::clear::All).as_str());
+        }
+
         for line in text.lines() {
             if !cursor_placed {
                 cursor_line_offset = cursor_offset - line_offset;
@@ -485,8 +498,14 @@ impl render::Renderable for FileView {
                 }
             }
 
-            renderer.move_cursor(line_number as u16, 1);
-            renderer.write(line);
+            if cursor_placed && !self.render_lines {
+                break;
+            }
+
+            if self.render_lines {
+                renderer.move_cursor(line_number as u16, 1);
+                renderer.write(line);
+            }
 
             line_number += 1;
 
@@ -494,14 +513,15 @@ impl render::Renderable for FileView {
             line_offset += (line.len() + 1) as usize;
         }
 
-        renderer.move_cursor(cursor_row, cursor_col);
+        self.render_lines  = false;
+        self.render_cursor = false;
 
-        self._should_render = false;
+        renderer.move_cursor(cursor_row, cursor_col);
 
         Ok(())
     }
 
     fn should_render(&self) -> bool {
-        self._should_render
+        self.render_lines || self.render_cursor
     }
 }

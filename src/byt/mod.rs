@@ -40,9 +40,6 @@ use self::events::*;
 pub fn render(mut screen : &mut Write, editor : &mut MutatePair<Editor>) {
     let size = termion::terminal_size().unwrap();
 
-    // Clear the screen before rendering
-    write!(screen, "{}", termion::clear::All);
-
     {
         let mut renderer = render::terminal::TermRenderer::new(&mut screen);
         editor.render(&mut renderer, size);
