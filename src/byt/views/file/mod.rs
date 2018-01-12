@@ -32,6 +32,8 @@ use byt::io::binds::KeyInput;
 #[derive(Debug, Clone)]
 /// Stores information about a line of text in the file.
 pub struct Line {
+    /// The line number. Starts at 1.
+    number : usize,
     /// The line's offset in the file.
     offset : usize,
     /// The length of the line in bytes without its line ending characters.
@@ -55,6 +57,11 @@ impl Line {
     /// Get the effective length of the line in bytes.
     pub fn len(&self) -> usize {
         self.content_length + self.line_ending_length
+    }
+
+    /// Get the line's number.
+    pub fn number(&self) -> usize {
+        self.number
     }
 
     /// Get the offset of the start of the line.
@@ -121,6 +128,7 @@ impl FileView {
     }
 
     /// Rebuild self.lines to have the proper line locations.
+    /// May only need to be called upon file load.
     fn regenerate_lines(&mut self) {
         // Read the whole piece file.
         let length = self.file.len();
@@ -131,6 +139,7 @@ impl FileView {
         // Base case when the file is empty.
         if length == 0 {
             self.lines.push(Line {
+                number             : 1,
                 offset             : 0,
                 content_length     : 0,
                 line_ending_length : 0,
@@ -139,6 +148,7 @@ impl FileView {
             return;
         }
 
+        let mut line_number : usize      = 1;
         let mut offset : usize           = 0;
         let mut line_offset : usize      = 0;
         let mut num_chars : usize        = 0;
@@ -154,12 +164,14 @@ impl FileView {
                     num_ending_chars += 1;
 
                     self.lines.push(Line {
+                        number             : line_number,
                         offset             : line_offset,
                         content_length     : num_chars,
                         line_ending_length : num_ending_chars,
                     });
 
                     line_offset      = offset + num_ending_chars;
+                    line_number     += 1;
                     num_chars        = 0;
                     num_ending_chars = 0;
                 },
@@ -173,6 +185,7 @@ impl FileView {
 
         if num_chars > 0 {
             self.lines.push(Line {
+                number             : line_number,
                 offset             : line_offset,
                 content_length     : num_chars,
                 line_ending_length : 0,
@@ -202,19 +215,20 @@ impl FileView {
     }
 
     /// Get the current line and its index.
-    pub fn current_line(&self) -> (usize, &Line) {
+    pub fn current_line(&self) -> &Line {
         let offset = self.cursor_offset;
 
         let mut index = 0;
+        // TODO make this binary search
         for line in self.lines.iter() {
             if offset >= line.start() && offset < line.end() {
-                return (index, &line);
+                return &line;
             }
 
             index += 1;
         }
 
-        return (0, &self.lines[0]);
+        return &self.lines[0];
     }
 
     /// Delete the character before the cursor. Works whether or not
@@ -239,7 +253,7 @@ impl FileView {
         let mut length : usize;
 
         {
-            let (_, line) = self.current_line();
+            let line = self.current_line();
             offset = line.start();
             length = line.len();
         }
@@ -295,25 +309,13 @@ impl FileView {
 
     /// Move the cursor to the beginning of the line.
     pub fn goto_line_end(&mut self) {
-        let mut offset : usize;
-
-        {
-            let (_, line) = self.current_line();
-            offset = line.content_end();
-        }
-
+        let offset = self.current_line().content_end();
         self.set_cursor(offset);
     }
 
     /// Move the cursor to the beginning of the line.
     pub fn goto_line_start(&mut self) {
-        let mut offset : usize;
-
-        {
-            let (_, line) = self.current_line();
-            offset = line.start();
-        }
-
+        let offset = self.current_line().start();
         self.set_cursor(offset);
     }
 
@@ -330,7 +332,6 @@ impl FileView {
         self.insertion += &c.to_string();
 
         self.move_right();
-
         self.render_lines = true;
     }
 
@@ -354,13 +355,15 @@ impl FileView {
     /// Negative numbers move the cursor more towards the top of
     /// the screen.
     pub fn move_lines(&mut self, delta : i64) {
-        let (line_index, _) = self.current_line();
+        let current_start = self.current_line().start();
+        let number        = self.current_line().number();
+
         // The distance of the cursor from the line's beginning.
-        let current_column    = self.cursor_offset - self.lines[line_index].start();
-        let num_lines = (self.lines.len() as i64);
+        let current_column = self.cursor_offset - current_start;
+        let num_lines      = (self.lines.len() as i64);
 
         // Calculate the bounded result of the move.
-        let dest_index  = cmp::max(0, cmp::min(num_lines - 1, (line_index as i64) + delta)) as usize;
+        let dest_index  = cmp::max(0, cmp::min(num_lines - 1, (number as i64) + delta)) as usize;
         let dest_column = cmp::min(self.lines[dest_index].content_length, current_column);
 
         let line_start = self.lines[dest_index].start();
@@ -376,8 +379,9 @@ impl FileView {
     /// Move the cursor left one.
     pub fn move_left(&mut self) {
         let current = self.cursor_offset;
+        let offset  = self.current_line().start();
 
-        if current == 0 {
+        if current == offset {
             return;
         }
 
@@ -386,10 +390,14 @@ impl FileView {
 
     /// Move the cursor right one.
     pub fn move_right(&mut self) {
-        let max           = self.file.len() + (self.insertion.len() as usize);
-        let cursor_offset = self.cursor_offset;
+        let current = self.cursor_offset;
+        let offset  = self.current_line().end();
 
-        self.set_cursor(cmp::min(cursor_offset + 1, max));
+        if current == offset {
+            return;
+        }
+
+        self.set_cursor(current + 1);
     }
 
     /// Move the cursor up one.
