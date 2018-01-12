@@ -24,6 +24,8 @@ For now this is more of a to-do list but it generally defines the direction the 
 - [X] Set up a system of mutations, which optionally attach to the pane or the
   global editing context and provide a combination of binding tables and
   functions.
+- [ ] Revisit the FileView's buffer operations and make them airtight. This
+  might involve rewriting some portion of view-specific rendering code.
 - [ ] Implement `vym`, byt's vim emulation mode. The goal isn't to be exactly
   like vim, just to make keybindings that are familiar to vim users.
   - [ ] All common movement keys.
