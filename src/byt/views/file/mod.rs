@@ -1,6 +1,12 @@
 //! byt - views::file
 //!
-//! The FileView offers operations on PieceFiles that it can render.
+//! The FileView offers operations on PieceFiles, which store all of the edits made to a file in a
+//! tidy data structure. The idea behind the FileView is that it provides an API for plugins to do
+//! common manipulations of state in a text editor. Things like inserting, deleting, movement, and
+//! search are all handled by the FileView. In a sense, that makes the struct seem rather
+//! monolithic, but the whole purpose is that users of FileViews never have to thing about the
+//! underlying representation on disk or otherwise. Since the goal of byt is extensibility, having
+//! a common base of functionality implemented in optimized Rust makes things a lot easier.
 
 // EXTERNS
 
