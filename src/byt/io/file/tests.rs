@@ -132,6 +132,19 @@ fn it_inserts_little_pieces() {
     assert_eq!(read.as_str(), "abaaa");
 }
 
+#[test]
+fn it_inserts_little_line_endings() {
+    let mut file = PieceFile::empty().unwrap();
+
+    file.insert("a", 0);
+    file.insert("\n", 1);
+    file.insert("a", 2);
+    file.insert("a", 3);
+
+    let read = file.read(4).unwrap();
+    assert_eq!(read.as_str(), "a\naa");
+}
+
 
 #[test]
 fn it_deletes_backwards() {

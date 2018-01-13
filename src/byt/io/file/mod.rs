@@ -408,6 +408,12 @@ impl PieceFile {
                 let append_end_offset   = append_start_offset + num_bytes;
                 let append_bytes        = self.append_file.as_bytes();
 
+                if append_end_offset > append_bytes.len() {
+                    panic!(format!("Attempting to read more bytes than possible: {} > {}",
+                                   append_end_offset,
+                                   append_bytes.len()));
+                }
+
                 if append_start_offset == append_end_offset {
                     let byte = append_bytes.get(append_start_offset).unwrap();
                     buf[0] = *byte;
@@ -588,13 +594,20 @@ impl PieceFile {
     /// (i.e if it falls on a UTF8 grapheme boundary) then it takes
     /// one grapheme fewer.
     pub fn read(&mut self, num_bytes : usize) -> io::Result<Box<String>> {
-        let mut result = Box::new(String::new());
+        let mut result    = Box::new(String::new());
+        let mut num_bytes = num_bytes;
 
         if num_bytes == 0 {
             return Ok(result);
         }
 
         let start_offset = self.offset;
+
+        // Don't allow the user to read past the end of the piece file.
+        if start_offset + num_bytes > self.len() {
+            return Err(Error::new(ErrorKind::InvalidInput, "Requested too many bytes"));
+        }
+
         let start_index  = self.get_at_offset(start_offset);
         // Often you'll see the ending offset be exclusive of the rest of
         // the selection. Here we want it to be end inclusive, so we subtract
@@ -647,8 +660,8 @@ impl PieceFile {
             // This is because read_piece does its own subtraction by one
             // so we don't need it in this specific calculation.
             // I understand why this might be confusing, but it works.
-            let piece_read_bytes   = end_offset - piece.logical_offset + 1;
             let piece_start_offset = piece.logical_offset;
+            let piece_read_bytes   = end_offset - piece_start_offset + 1;
 
             self.read_piece(
                 piece,

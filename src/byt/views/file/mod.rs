@@ -105,15 +105,6 @@ pub struct FileView {
     /// Stores and interprets keybindings for this buffer
     /// in particular.
     keys : Keymaster,
-
-    /// Stores an insertion as it happens so that the caller
-    /// doesn't have to worry about batching together single
-    /// keys.
-    insertion : String,
-
-    /// The start of the current insertion in the file, in bytes.
-    /// Taken from cursor_offset.
-    insert_start : usize,
 }
 
 impl FileView {
@@ -133,12 +124,19 @@ impl FileView {
         (viewport_loc, cmp::min((rows * cols) as usize, self.file.len()))
     }
 
+    /// Iterate through all of the lines in the file, using the current
+    /// insertion's lines when necessary.
+    /// Might want to make this a Range at some point, but I'm a noob.
+    fn cycle_lines<F>(&self, start : usize, end : usize, iterator : F)
+        where F : Fn(usize, &Line) {
+    }
+
     /// Rebuild self.lines to have the proper line locations.
     /// May only need to be called upon file load.
     fn regenerate_lines(&mut self) {
         // Read the whole piece file.
         let length = self.file.len();
-        let text   = self.file.read(length).unwrap();
+        let text   = self.file.read_at(0, length).unwrap();
 
         self.lines.clear();
 
@@ -210,12 +208,8 @@ impl FileView {
             return;
         }
 
-        if self.insertion.len() > 0 {
-            self.insertion.pop();
-        } else if self.cursor_offset > 0 {
-            self.file.delete(self.cursor_offset - 1, 1);
-        }
-
+        self.file.delete(self.cursor_offset - 1, 1);
+        self.regenerate_lines();
         self.move_left();
         self.render_lines = true;
     }
@@ -237,12 +231,15 @@ impl FileView {
         return &self.lines[0];
     }
 
-    /// Delete the character before the cursor. Works whether or not
-    /// you are currently in an insertion.
+    /// Delete some text from the file.
     pub fn delete(&mut self, offset : usize, num_bytes : usize) {
-        if offset < 0 || offset >= self.file.len() {
+        if offset < 0 ||
+            offset >= self.file.len() {
             return;
         }
+
+        // TODO handle case where offset + num_bytes is greater than
+        // the file length
 
         if self.cursor_offset >= offset && self.cursor_offset <= offset + num_bytes {
             self.set_cursor(offset);
@@ -273,33 +270,16 @@ impl FileView {
             path : Option::None,
             file : PieceFile::empty().unwrap(),
             cursor_offset : 0,
-            viewport_top : 0,
+            viewport_top : 1,
             lines : Vec::new(),
             render_lines : true,
             render_cursor : true,
             keys  : Keymaster::new(),
-            insertion : String::new(),
-            insert_start : 0,
         };
 
         view.regenerate_lines();
 
         Ok(view)
-    }
-
-    /// Flush inserted characters to the underlying PieceFile.
-    pub fn done_inserting(&mut self) {
-        if self.insertion.is_empty() {
-            return;
-        }
-
-        self.file.insert(self.insertion.as_str(), self.insert_start);
-        let insert_length = self.insertion.len();
-        let insert_start  = self.insert_start;
-        self.set_cursor(insert_start + insert_length);
-        self.insertion.clear();
-        self.regenerate_lines();
-        self.render_lines = true;
     }
 
     /// Get a reference to the view's PieceFile.
@@ -311,6 +291,16 @@ impl FileView {
     /// if you're sure you know what you're doing.
     pub fn file_mut(&mut self) -> &mut PieceFile {
         &mut self.file
+    }
+
+    /// Get a line from the file. This only includes byte offsets,
+    /// so don't expect to get any text from this yet.
+    pub fn get_line(&self, number : usize) -> Option<&Line> {
+        if number < 1 || number > self.lines.len() {
+            return None;
+        }
+
+        Some(&self.lines[number - 1])
     }
 
     /// Move the cursor to the beginning of the line.
@@ -326,23 +316,17 @@ impl FileView {
     }
 
     /// Insert a character into the PieceFile at the offset of the cursor. Does NOT actually insert
-    /// the character into the underlying PieceFile until you call done_inserting().  Note that
-    /// this is making a bit of a gratuitous assumption that all inserts will be done continuously
-    /// in single pieces. This is true in cases like vim where there is a rigid separation between
-    /// modes, but it's bad for editors that always want to be "live".
+    /// the character into the underlying PieceFile until you call done_inserting().
     pub fn insert(&mut self, c : char) {
-        if self.insertion.is_empty() {
-            self.insert_start = self.cursor_offset;
-        }
+        let offset = self.cursor_offset;
+        self.file.insert(c.to_string().as_str(), offset);
 
-        self.insertion += &c.to_string();
-
+        self.regenerate_lines();
         self.move_right();
         self.render_lines = true;
     }
 
-    /// Insert a string at the offset of the cursor. Unlike `insert()`, this does
-    /// not require calling `done_inserting`.
+    /// Insert a string at the offset of the cursor.
     pub fn insert_str<N: AsRef<str>>(&mut self, text: N) {
         let text = text.as_ref();
         let cursor_offset = self.cursor_offset;
@@ -351,10 +335,9 @@ impl FileView {
         self.set_cursor(cursor_offset + text.len());
     }
 
-    /// Get the length of the file in this view including the current insertion (i.e
-    /// text that was inserted if `done_inserting` has not been called yet).
+    /// Get the length of the file .
     pub fn len(&self) -> usize {
-        self.insertion.len() + self.file.len()
+        self.file.len()
     }
 
     /// Move the cursor a number of lines according to a delta.
@@ -419,13 +402,11 @@ impl FileView {
             path : Option::Some(String::from(path)),
             file : PieceFile::open(path).unwrap(),
             cursor_offset : 0,
-            viewport_top : 0,
+            viewport_top : 1,
             lines : Vec::new(),
             render_lines : true,
             render_cursor : true,
             keys  : Keymaster::new(),
-            insertion : String::new(),
-            insert_start : 0,
         };
 
         view.regenerate_lines();
@@ -466,14 +447,8 @@ impl Actionable for FileView {
 impl render::Renderable for FileView {
     fn render(&mut self, renderer : &mut render::Renderer, size : (u16, u16)) -> Result<()> {
         let (rows, cols) = size;
-        let (start_offset, length) = self.calculate_viewport(size);
-
-        let mut text = self.file.read_at(start_offset, length).unwrap();
-
-        if self.insertion.len() > 0 {
-            text.insert_str((self.insert_start - start_offset) as usize, self.insertion.as_str());
-        }
-
+        let top          = self.viewport_top;
+        let bottom       = cmp::min(top + (rows as usize) - 1, self.lines.len());
         let mut line_number = 1;
 
         // The offset of the current line in viewport-local space.
@@ -484,7 +459,7 @@ impl render::Renderable for FileView {
 
         // The file-global cursor offset. This may fall within an imaginary location in
         // the current insertion.
-        let mut cursor_offset = self.cursor_offset - start_offset;
+        let mut cursor_offset = self.cursor_offset;
         let mut cursor_placed = false;
         // The calculated screen position of the cursor
         let mut cursor_row : u16 = 1;
@@ -494,38 +469,24 @@ impl render::Renderable for FileView {
             renderer.write(format!("{}", termion::clear::All).as_str());
         }
 
-        for line in text.lines() {
+        for line in self.lines.iter() {
             if !cursor_placed {
-                cursor_line_offset = cursor_offset - line_offset;
+                cursor_line_offset = cursor_offset - line.start();
 
-                if cursor_line_offset <= (line.len() as usize) {
+                if cursor_line_offset <= line.content_end() {
                     cursor_row = line_number;
                     cursor_col = (cursor_line_offset + 1) as u16;
                     cursor_placed = true;
                 }
-
-                // I can't believe this fucking works flawlessly.
-                // After beating my head against this problem, here we are.
-                if cursor_line_offset == (line.len() + 1) as usize {
-                    cursor_row = line_number + 1;
-                    cursor_col = 1;
-                    cursor_placed = true;
-                }
-            }
-
-            if cursor_placed && !self.render_lines {
-                break;
             }
 
             if self.render_lines {
                 renderer.move_cursor(line_number as u16, 1);
-                renderer.write(line);
+                let text = self.file.read_at(line.start(), line.len()).unwrap();
+                renderer.write(&text);
             }
 
             line_number += 1;
-
-            // Once again we are assuming only \n and not \r\n.
-            line_offset += (line.len() + 1) as usize;
         }
 
         self.render_lines  = false;

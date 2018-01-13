@@ -107,7 +107,6 @@ fn init_vym(vym : &mut Vym) {
     // Transition back to normal mode with normal keybindings.
     rust.register("vym.normal", |state, target, key| {
         state.normal_mode();
-        target.done_inserting();
     });
 
     // Insert mode has its own binding table that defaults to just
