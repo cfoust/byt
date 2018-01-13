@@ -9,6 +9,38 @@ fn make_file() -> FileView {
 }
 
 #[test]
+fn it_inserts_a_character() {
+    let mut file = make_file();
+    file.insert('a');
+    assert_eq!(file.cursor_offset, 1);
+    assert_eq!(file.len(), 1);
+    assert_eq!(file.lines.len(), 1);
+
+    {
+        let line = &file.lines[0];
+        assert_eq!(line.start(), 0);
+        assert_eq!(line.end(), 1);
+        assert_eq!(line.len(), 1);
+    }
+}
+
+#[test]
+fn it_inserts_a_string() {
+    let mut file = make_file();
+    file.insert_str("a");
+    assert_eq!(file.cursor_offset, 1);
+    assert_eq!(file.len(), 1);
+    assert_eq!(file.lines.len(), 1);
+
+    {
+        let line = &file.lines[0];
+        assert_eq!(line.start(), 0);
+        assert_eq!(line.end(), 1);
+        assert_eq!(line.len(), 1);
+    }
+}
+
+#[test]
 fn it_moves_down() {
     let mut file = make_file();
     file.insert_str("foo\nbar");
@@ -56,10 +88,33 @@ fn it_deletes_this_line() {
 }
 
 #[test]
+fn it_deletes_a_lower_line() {
+    let mut file = make_file();
+
+    file.insert_str("foo\nbar\nfoobar");
+    file.set_cursor(4);
+    assert_eq!(file.current_line().number(), 2);
+    assert_eq!(file.len(), 14);
+
+    file.delete_current_line();
+    assert_eq!(file.len(), 10);
+
+    let read = file.file.read_at(0, 10).unwrap();
+    assert_eq!(read.len(), 10);
+    assert_eq!(read.as_str(), "foo\nfoobar");
+
+    assert_eq!(file.cursor_offset, 4);
+    assert_eq!(file.len(), 10);
+}
+
+#[test]
 fn it_deletes_this_line_in_empty_file() {
     let mut file = make_file();
 
     file.insert_str("h");
+    assert_eq!(file.len(), 1);
+    assert_eq!(file.lines.len(), 1);
+
     file.delete_current_line();
 
     assert_eq!(file.len(), 0);

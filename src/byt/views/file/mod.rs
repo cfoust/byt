@@ -60,6 +60,11 @@ impl Line {
         self.offset + self.len()
     }
 
+    /// Get the size of the line ending characters.
+    pub fn end_size(&self) -> usize {
+        self.line_ending_length
+    }
+
     /// Get the effective length of the line in bytes.
     pub fn len(&self) -> usize {
         self.content_length + self.line_ending_length
@@ -111,26 +116,6 @@ impl FileView {
     // #################################
     // P R I V A T E  F U N C T I O N S
     // #################################
-
-    /// Calculate the size of the viewport.
-    fn calculate_viewport(&mut self, size : (u16, u16)) -> (usize, usize) {
-        let (rows, cols) = size;
-        // TODO actually enable scrolling
-        let viewport_loc = 0;
-
-        // We'll come back and add support for multibyte characters
-        // at some point. For the time being I don't feel like
-        // implementing it.
-        (viewport_loc, cmp::min((rows * cols) as usize, self.file.len()))
-    }
-
-    /// Iterate through all of the lines in the file, using the current
-    /// insertion's lines when necessary.
-    /// Might want to make this a Range at some point, but I'm a noob.
-    fn cycle_lines<F>(&self, start : usize, end : usize, iterator : F)
-        where F : Fn(usize, &Line) {
-    }
-
     /// Rebuild self.lines to have the proper line locations.
     /// May only need to be called upon file load.
     fn regenerate_lines(&mut self) {
@@ -240,8 +225,9 @@ impl FileView {
 
         // TODO handle case where offset + num_bytes is greater than
         // the file length
+        let cursor = self.cursor_offset;
 
-        if self.cursor_offset >= offset && self.cursor_offset <= offset + num_bytes {
+        if cursor >= offset && cursor <= offset + num_bytes {
             self.set_cursor(offset);
         }
 
@@ -322,17 +308,19 @@ impl FileView {
         self.file.insert(c.to_string().as_str(), offset);
 
         self.regenerate_lines();
-        self.move_right();
+        self.set_cursor(offset + 1);
         self.render_lines = true;
     }
 
     /// Insert a string at the offset of the cursor.
     pub fn insert_str<N: AsRef<str>>(&mut self, text: N) {
         let text = text.as_ref();
-        let cursor_offset = self.cursor_offset;
-        self.file.insert(text, cursor_offset);
-        self.regenerate_lines();
-        self.set_cursor(cursor_offset + text.len());
+
+        let mut offset = self.cursor_offset;
+        for c in text.chars() {
+            self.insert(c);
+            offset += 1;
+        }
     }
 
     /// Get the length of the file .
@@ -381,9 +369,9 @@ impl FileView {
     /// Move the cursor right one.
     pub fn move_right(&mut self) {
         let current = self.cursor_offset;
-        let offset  = self.current_line().end();
+        let limit   = self.current_line().content_end();
 
-        if current == offset {
+        if current == limit {
             return;
         }
 
@@ -449,18 +437,11 @@ impl render::Renderable for FileView {
         let (rows, cols) = size;
         let top          = self.viewport_top;
         let bottom       = cmp::min(top + (rows as usize) - 1, self.lines.len());
+
         let mut line_number = 1;
-
-        // The offset of the current line in viewport-local space.
-        let mut line_offset  = 0;
-
-        // The offset of the cursor within the current line
-        let mut cursor_line_offset = 0;
-
-        // The file-global cursor offset. This may fall within an imaginary location in
-        // the current insertion.
         let mut cursor_offset = self.cursor_offset;
         let mut cursor_placed = false;
+
         // The calculated screen position of the cursor
         let mut cursor_row : u16 = 1;
         let mut cursor_col : u16 = 1;
@@ -470,23 +451,25 @@ impl render::Renderable for FileView {
         }
 
         for line in self.lines.iter() {
-            if !cursor_placed {
-                cursor_line_offset = cursor_offset - line.start();
+            line_number = line.number() - top + 1;
 
-                if cursor_line_offset <= line.content_end() {
-                    cursor_row = line_number;
-                    cursor_col = (cursor_line_offset + 1) as u16;
+            if !cursor_placed && cursor_offset >= line.start() {
+                if cursor_offset <= line.content_end() {
+                    cursor_row    = line_number as u16;
+                    cursor_col    = (cursor_offset - line.start() + 1) as u16;
+                    cursor_placed = true;
+                } else if cursor_offset == line.end() {
+                    cursor_row    = (line_number + 1) as u16;
+                    cursor_col    = 1;
                     cursor_placed = true;
                 }
             }
 
             if self.render_lines {
                 renderer.move_cursor(line_number as u16, 1);
-                let text = self.file.read_at(line.start(), line.len()).unwrap();
+                let text = self.file.read_at(line.start(), line.len() - line.end_size()).unwrap();
                 renderer.write(&text);
             }
-
-            line_number += 1;
         }
 
         self.render_lines  = false;

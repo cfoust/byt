@@ -55,6 +55,11 @@ impl Piece {
     pub fn logical_to_file(&self, offset : usize) -> usize {
         return (offset - self.logical_offset) + self.file_offset;
     }
+
+    /// Check whether an offset falls inside this Piece.
+    pub fn contains(&self, offset : usize) -> bool {
+        offset >= self.logical_offset && offset < self.logical_offset + self.length
+    }
 }
 
 impl fmt::Display for Piece {
@@ -293,10 +298,7 @@ impl PieceFile {
         // TODO rewrite to be binary search as we have logical
         // offsets now
         for index in 0..self.piece_table.len() {
-            let piece            = &self.piece_table[index];
-            let piece_end_offset = piece.logical_offset + piece.length;
-
-            if offset >= piece_end_offset {
+            if !self.piece_table[index].contains(offset) {
                 continue;
             }
 
@@ -488,6 +490,7 @@ impl PieceFile {
     pub fn delete(&mut self, offset : usize, length : usize) {
         let action = self._delete(offset, length);
         self.remove_newer_history();
+        self.update_offsets(0);
         self.actions.push(action);
     }
 
@@ -614,6 +617,9 @@ impl PieceFile {
         // one from the offset. Off-by-one errors are hard.
         let end_offset   = self.offset + num_bytes - 1;
         let end_index    = self.get_at_offset(end_offset);
+
+        assert!(self.piece_table[end_index].contains(end_offset));
+
         let num_pieces   = end_index - start_index + 1;
 
         // Same as delete. There is an edge case where we read solely inside
@@ -669,6 +675,8 @@ impl PieceFile {
                 piece_read_bytes,
                 &mut result);
         }
+
+        assert_eq!(result.len(), num_bytes);
 
         Ok(result)
     }

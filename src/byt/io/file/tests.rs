@@ -133,18 +133,23 @@ fn it_inserts_little_pieces() {
 }
 
 #[test]
-fn it_inserts_little_line_endings() {
+fn it_deletes_little_pieces() {
     let mut file = PieceFile::empty().unwrap();
 
     file.insert("a", 0);
     file.insert("\n", 1);
     file.insert("a", 2);
-    file.insert("a", 3);
+    file.insert("\n", 3);
+    file.insert("a", 4);
+    file.insert("\n", 5);
+
+    println!("{}", file);
+
+    file.delete(2, 2);
 
     let read = file.read(4).unwrap();
-    assert_eq!(read.as_str(), "a\naa");
+    assert_eq!(read.as_str(), "a\na\n");
 }
-
 
 #[test]
 fn it_deletes_backwards() {
