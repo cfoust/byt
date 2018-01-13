@@ -356,7 +356,8 @@ impl FileView {
     /// the screen.
     pub fn move_lines(&mut self, delta : i64) {
         let current_start = self.current_line().start();
-        let number        = self.current_line().number();
+        // Have to subtract by one becauase line numbers are 1-indexed.
+        let number        = self.current_line().number() - 1;
 
         // The distance of the cursor from the line's beginning.
         let current_column = self.cursor_offset - current_start;
