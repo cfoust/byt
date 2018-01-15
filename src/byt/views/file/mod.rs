@@ -434,7 +434,6 @@ impl FileView {
     /// Set the line that is the top of the viewport. Lines
     /// are zero-indexed.
     pub fn set_viewport_top(&mut self, line : usize) -> Result<()> {
-        // TODO: input validation
         self.viewport_top = cmp::min(line, (self.lines.len() - 1) as usize);
         self.render_lines = true;
 
@@ -491,6 +490,19 @@ impl render::Renderable for FileView {
                 renderer.move_cursor(line_number as u16, 1);
                 let text = self.file.read_at(line.start(), line.len() - line.end_size()).unwrap();
                 renderer.write(&text);
+
+                if line_number == self.lines.len() && 
+                    line.line_ending_length > 0 {
+                    line_number += 1;
+                }
+            }
+        }
+        
+        let next_line = (line_number + 1) as u16;
+        if self.render_lines && next_line <= rows {
+            for line in next_line .. rows {
+                renderer.move_cursor(line, 1);
+                renderer.write("~");
             }
         }
 
