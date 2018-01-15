@@ -221,9 +221,8 @@ impl FileView {
         // TODO handle case where offset + num_bytes is greater than
         // the file length
         let cursor = self.cursor_offset;
-
-        if cursor >= offset && cursor <= offset + num_bytes {
-            self.set_cursor(offset);
+        if cursor > offset {
+            self.set_cursor(cursor - cmp::min(num_bytes, cursor - (offset + num_bytes)));
         }
 
         self.file.delete(offset, num_bytes);
@@ -428,6 +427,19 @@ impl FileView {
     pub fn set_cursor(&mut self, loc : usize) -> Result<()> {
         self.cursor_offset = loc;
         self.render_cursor = true;
+
+        // Ensure the cursor's new position falls on a line in the
+        // viewport as it was at the time of the last render.
+        let line           = self.current_line().number();
+        let viewport_start = self.viewport_top;
+        let viewport_end   = viewport_start + self.viewport_rows - 1;
+
+        if line < viewport_start {
+            self.move_viewport((line as i64) - (viewport_start as i64));
+        } if line > viewport_end {
+            self.move_viewport((line as i64) - (viewport_end as i64));
+        }
+
         Ok(())
     }
 
@@ -436,7 +448,6 @@ impl FileView {
     pub fn set_viewport_top(&mut self, line : usize) -> Result<()> {
         self.viewport_top = cmp::min(line, self.lines.len());
         self.render_lines = true;
-
         Ok(())
     }
 }

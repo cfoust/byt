@@ -214,3 +214,9 @@ fn it_moves_the_cursor_too() {
     file.move_viewport(1);
     assert_eq!(file.cursor_offset, 4);
 }
+
+#[test]
+fn it_doesnt_add_fake_newlines() {
+    let mut file = FileView::new("testfiles/no_line_ending.txt").unwrap();
+    assert_eq!(file.lines.len(), 1);
+}
