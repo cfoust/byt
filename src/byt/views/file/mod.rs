@@ -233,13 +233,15 @@ impl FileView {
         let mut offset : usize;
         let mut length : usize;
 
-        {
-            let line = self.current_line();
-            offset = line.start();
-            length = line.len();
+        let line = self.current_line().clone();
+
+        if line.number() == self.lines.len() &&
+           line.len() == 0 {
+            self.backspace();
+            return;
         }
 
-        self.delete(offset, length);
+        self.delete(line.start(), line.len());
     }
 
     /// Make a new FileView with an empty, in-memory PieceFile.
@@ -323,7 +325,7 @@ impl FileView {
     /// Move the cursor a number of lines according to a delta.
     /// Negative numbers move the cursor more towards the top of
     /// the screen.
-    pub fn move_lines(&mut self, delta : i64) {
+    pub fn move_vertically(&mut self, delta : i64) {
         let current_start = self.current_line().start();
         // Have to subtract by one becauase line numbers are 1-indexed.
         let index         = self.current_line().number() - 1;
@@ -351,7 +353,7 @@ impl FileView {
 
     /// Move the cursor down one.
     pub fn move_down(&mut self) {
-        self.move_lines(1);
+        self.move_vertically(1);
     }
 
     /// Move the cursor left one.
@@ -380,7 +382,7 @@ impl FileView {
 
     /// Move the cursor up one.
     pub fn move_up(&mut self) {
-        self.move_lines(-1);
+        self.move_vertically(-1);
     }
 
     /// Make a new FileView with a predefined path. Does not attempt to open the file

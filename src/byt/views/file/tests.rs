@@ -168,3 +168,13 @@ fn it_deletes_this_line_in_empty_file() {
         assert_eq!(line.len(), 0);
     }
 }
+
+#[test]
+fn it_deletes_the_last_empty_line() {
+    let mut file = make_file();
+
+    file.insert_str("foo\nbar\n");
+    file.delete_current_line();
+    let read = file.file.read_at(0, 7).unwrap();
+    assert_eq!(read.as_str(), "foo\nbar");
+}
