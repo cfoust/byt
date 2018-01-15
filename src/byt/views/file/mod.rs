@@ -130,18 +130,6 @@ impl FileView {
 
         self.lines.clear();
 
-        // Base case when the file is empty.
-        if length == 0 {
-            self.lines.push(Line {
-                number             : 1,
-                offset             : 0,
-                content_length     : 0,
-                line_ending_length : 0,
-            });
-
-            return;
-        }
-
         let mut line_number : usize      = 1;
         let mut offset : usize           = 0;
         let mut line_offset : usize      = 0;
@@ -177,14 +165,12 @@ impl FileView {
             offset += 1;
         }
 
-        if num_chars > 0 {
-            self.lines.push(Line {
-                number             : line_number,
-                offset             : line_offset,
-                content_length     : num_chars,
-                line_ending_length : 0,
-            });
-        }
+        self.lines.push(Line {
+            number             : line_number,
+            offset             : line_offset,
+            content_length     : num_chars,
+            line_ending_length : 0,
+        });
     }
 
     // ###############################
@@ -353,14 +339,6 @@ impl FileView {
         let last_end_chars = self.lines[last].line_ending_length;
         let last_end       = self.lines[last].end();
 
-        if delta > 0 &&
-           index + (delta as usize) == self.lines.len() &&
-           last_end_chars > 0 {
-            self.set_cursor(last_end);
-            self.render_cursor = true;
-            return;
-        }
-
         // Calculate the bounded result of the move.
         let dest_index  = cmp::max(0, cmp::min(num_lines - 1, (index as i64) + delta)) as usize;
         let dest_column = cmp::min(self.lines[dest_index].content_length, current_column);
@@ -490,14 +468,9 @@ impl render::Renderable for FileView {
                 renderer.move_cursor(line_number as u16, 1);
                 let text = self.file.read_at(line.start(), line.len() - line.end_size()).unwrap();
                 renderer.write(&text);
-
-                if line_number == self.lines.len() && 
-                    line.line_ending_length > 0 {
-                    line_number += 1;
-                }
             }
         }
-        
+
         let next_line = (line_number + 1) as u16;
         if self.render_lines && next_line <= rows {
             for line in next_line .. rows {
