@@ -92,6 +92,16 @@ fn init_vym(vym : &mut Vym) {
     });
     normal.bind_action([Key::Ctrl('e')], "vym.viewport_down");
 
+    rust.register("vym.to_file_end", |state, target, key| {
+        target.move_cursor_to_end();
+    });
+    normal.bind_action([Key::Char('G')], "vym.to_file_end");
+
+    rust.register("vym.to_file_start", |state, target, key| {
+        target.move_cursor_to_start();
+    });
+    normal.bind_action([Key::Char('g'), Key::Char('g')], "vym.to_file_start");
+
     // Moves to the end of the line.
     rust.register("vym.delete_line", |state, target, key| {
         target.delete_current_line();

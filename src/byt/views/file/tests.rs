@@ -220,3 +220,21 @@ fn it_doesnt_add_fake_newlines() {
     let mut file = FileView::new("testfiles/no_line_ending.txt").unwrap();
     assert_eq!(file.lines.len(), 1);
 }
+
+#[test]
+fn it_goes_to_the_end_of_the_file() {
+    let mut file = make_file();
+    file.insert_str("foo\nbar\nfoobar");
+    file.set_cursor(0);
+    file.move_cursor_to_end();
+    assert_eq!(file.cursor_offset, 8);
+}
+
+#[test]
+fn it_goes_to_the_start_of_the_file() {
+    let mut file = make_file();
+    file.insert_str("foo\nbar\nfoobar");
+    file.set_cursor(8);
+    file.move_cursor_to_start();
+    assert_eq!(file.cursor_offset, 0);
+}

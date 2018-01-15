@@ -388,6 +388,18 @@ impl FileView {
         self.move_cursor_vertically(-1);
     }
 
+    /// Move the cursor to the end of the file.
+    pub fn move_cursor_to_start(&mut self) {
+        let change =  (-1 * (self.current_line().number() as i64)) + 1;
+        self.move_cursor_vertically(change as i64);
+    }
+
+    /// Move the cursor to the end of the file.
+    pub fn move_cursor_to_end(&mut self) {
+        let change = self.lines.len() - self.current_line().number();
+        self.move_cursor_vertically(change as i64);
+    }
+
     /// Move the viewport up and down in the file.
     pub fn move_viewport(&mut self, delta : i64) {
         let index      = self.viewport_top as i64;
