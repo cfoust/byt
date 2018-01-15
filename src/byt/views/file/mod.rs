@@ -393,8 +393,15 @@ impl FileView {
     pub fn move_viewport(&mut self, delta : i64) {
         let index      = self.viewport_top as i64;
         let num_lines  = self.lines.len() as i64;
-        let dest_index = cmp::max(1, cmp::min(num_lines, index + delta));
-        self.set_viewport_top(dest_index as usize);
+        let dest_index = cmp::max(1, cmp::min(num_lines, index + delta)) as usize;
+        self.set_viewport_top(dest_index);
+
+        // If we scroll past where the cursor is we want to move it, too.
+        let current_line = self.current_line().number();
+        if dest_index > current_line {
+            let target = (dest_index as i64) - (current_line as i64);
+            self.move_cursor_vertically(target);
+        }
     }
 
     /// Make a new FileView with a predefined path. Does not attempt to open the file
@@ -467,6 +474,10 @@ impl render::Renderable for FileView {
         }
 
         for line in self.lines.iter() {
+            if line.number < top {
+                continue;
+            }
+
             line_number = line.number() - top + 1;
 
             if !cursor_placed && cursor_offset >= line.start() {

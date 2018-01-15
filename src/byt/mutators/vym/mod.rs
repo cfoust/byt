@@ -81,6 +81,17 @@ fn init_vym(vym : &mut Vym) {
     });
     normal.bind_action([Key::Char('$')], "vym.$");
 
+    // Move the viewport up and down
+    rust.register("vym.viewport_up", |state, target, key| {
+        target.move_viewport(-1);
+    });
+    normal.bind_action([Key::Ctrl('y')], "vym.viewport_up");
+
+    rust.register("vym.viewport_down", |state, target, key| {
+        target.move_viewport(1);
+    });
+    normal.bind_action([Key::Ctrl('e')], "vym.viewport_down");
+
     // Moves to the end of the line.
     rust.register("vym.delete_line", |state, target, key| {
         target.delete_current_line();
