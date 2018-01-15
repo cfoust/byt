@@ -99,6 +99,9 @@ pub struct FileView {
     /// The line number of the top of the viewport.
     /// Line numbers are zero-indexed.
     viewport_top : usize,
+    /// The number of rows the viewport had the last time
+    /// this FileView was rendered.
+    viewport_rows: usize,
 
     /// A Vec of the locations of line ending characters.
     /// Regenerated after insertion or deletion.
@@ -186,7 +189,7 @@ impl FileView {
 
         self.file.delete(self.cursor_offset - 1, 1);
         self.regenerate_lines();
-        self.move_left();
+        self.move_cursor_left();
         self.render_lines = true;
     }
 
@@ -251,6 +254,7 @@ impl FileView {
             file : PieceFile::empty().unwrap(),
             cursor_offset : 0,
             viewport_top : 1,
+            viewport_rows : 0,
             lines : Vec::new(),
             render_lines : true,
             render_cursor : true,
@@ -325,7 +329,7 @@ impl FileView {
     /// Move the cursor a number of lines according to a delta.
     /// Negative numbers move the cursor more towards the top of
     /// the screen.
-    pub fn move_vertically(&mut self, delta : i64) {
+    pub fn move_cursor_vertically(&mut self, delta : i64) {
         let current_start = self.current_line().start();
         // Have to subtract by one becauase line numbers are 1-indexed.
         let index         = self.current_line().number() - 1;
@@ -352,12 +356,12 @@ impl FileView {
     }
 
     /// Move the cursor down one.
-    pub fn move_down(&mut self) {
-        self.move_vertically(1);
+    pub fn move_cursor_down(&mut self) {
+        self.move_cursor_vertically(1);
     }
 
     /// Move the cursor left one.
-    pub fn move_left(&mut self) {
+    pub fn move_cursor_left(&mut self) {
         let current = self.cursor_offset;
         let offset  = self.current_line().start();
 
@@ -369,7 +373,7 @@ impl FileView {
     }
 
     /// Move the cursor right one.
-    pub fn move_right(&mut self) {
+    pub fn move_cursor_right(&mut self) {
         let current = self.cursor_offset;
         let limit   = self.current_line().content_end();
 
@@ -381,8 +385,16 @@ impl FileView {
     }
 
     /// Move the cursor up one.
-    pub fn move_up(&mut self) {
-        self.move_vertically(-1);
+    pub fn move_cursor_up(&mut self) {
+        self.move_cursor_vertically(-1);
+    }
+
+    /// Move the viewport up and down in the file.
+    pub fn move_viewport(&mut self, delta : i64) {
+        let index      = self.viewport_top as i64;
+        let num_lines  = self.lines.len() as i64;
+        let dest_index = cmp::max(1, cmp::min(num_lines, index + delta));
+        self.set_viewport_top(dest_index as usize);
     }
 
     /// Make a new FileView with a predefined path. Does not attempt to open the file
@@ -393,6 +405,7 @@ impl FileView {
             file : PieceFile::open(path).unwrap(),
             cursor_offset : 0,
             viewport_top : 1,
+            viewport_rows : 0,
             lines : Vec::new(),
             render_lines : true,
             render_cursor : true,
@@ -414,7 +427,7 @@ impl FileView {
     /// Set the line that is the top of the viewport. Lines
     /// are zero-indexed.
     pub fn set_viewport_top(&mut self, line : usize) -> Result<()> {
-        self.viewport_top = cmp::min(line, (self.lines.len() - 1) as usize);
+        self.viewport_top = cmp::min(line, self.lines.len());
         self.render_lines = true;
 
         Ok(())
@@ -438,6 +451,8 @@ impl render::Renderable for FileView {
         let (rows, cols) = size;
         let top          = self.viewport_top;
         let bottom       = cmp::min(top + (rows as usize) - 1, self.lines.len());
+
+        self.viewport_rows = rows as usize;
 
         let mut line_number = 1;
         let mut cursor_offset = self.cursor_offset;

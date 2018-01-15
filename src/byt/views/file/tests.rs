@@ -46,7 +46,7 @@ fn it_moves_down() {
     file.insert_str("foo\nbar");
     assert_eq!(file.cursor_offset, 7);
     file.set_cursor(0);
-    file.move_down();
+    file.move_cursor_down();
     assert_eq!(file.cursor_offset, 4);
 }
 
@@ -55,7 +55,7 @@ fn it_moves_down_to_CR() {
     let mut file = make_file();
     file.insert_str("foo\n");
     file.set_cursor(3);
-    file.move_down();
+    file.move_cursor_down();
     assert_eq!(file.cursor_offset, 4);
 }
 
@@ -64,7 +64,7 @@ fn it_doesnt_move_down_past_end() {
     let mut file = make_file();
     file.insert_str("foo\nbar");
     file.set_cursor(4);
-    file.move_down();
+    file.move_cursor_down();
     assert_eq!(file.cursor_offset, 4);
 }
 
@@ -74,7 +74,7 @@ fn it_moves_up() {
     file.insert_str("foo\nbar");
     assert_eq!(file.cursor_offset, 7);
     file.set_cursor(4);
-    file.move_up();
+    file.move_cursor_up();
     assert_eq!(file.cursor_offset, 0);
 }
 
@@ -83,7 +83,7 @@ fn it_moves_right() {
     let mut file = make_file();
     file.insert_str("fo");
     file.set_cursor(0);
-    file.move_right();
+    file.move_cursor_right();
     assert_eq!(file.cursor_offset, 1);
 }
 
@@ -115,7 +115,7 @@ fn it_moves_left() {
     let mut file = make_file();
     file.insert_str("fo");
     file.set_cursor(1);
-    file.move_left();
+    file.move_cursor_left();
     assert_eq!(file.cursor_offset, 0);
 }
 
@@ -177,4 +177,31 @@ fn it_deletes_the_last_empty_line() {
     file.delete_current_line();
     let read = file.file.read_at(0, 7).unwrap();
     assert_eq!(read.as_str(), "foo\nbar");
+}
+
+#[test]
+fn it_moves_viewport_down() {
+    let mut file = make_file();
+    file.insert_str("foo\nbar");
+    file.set_cursor(0);
+    file.move_viewport(1);
+    assert_eq!(file.viewport_top, 2);
+}
+
+#[test]
+fn it_moves_viewport_up() {
+    let mut file = make_file();
+    file.insert_str("foo\nbar");
+    file.set_viewport_top(2);
+    file.move_viewport(-1);
+    assert_eq!(file.viewport_top, 1);
+}
+
+#[test]
+fn it_doesnt_fail_with_invalid_delta() {
+    let mut file = make_file();
+    file.insert_str("foo\nbar");
+    file.set_viewport_top(2);
+    file.move_viewport(-3);
+    assert_eq!(file.viewport_top, 1);
 }

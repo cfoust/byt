@@ -36,22 +36,22 @@ fn init_vym(vym : &mut Vym) {
     // ###########
     // Initialize the HJKL motions
     rust.register("vym.right", |state, target, key| {
-        target.move_right();
+        target.move_cursor_right();
     });
     normal.bind_action([Key::Char('l')], "vym.right");
 
     rust.register("vym.left", |state, target, key| {
-        target.move_left();
+        target.move_cursor_left();
     });
     normal.bind_action([Key::Char('h')], "vym.left");
 
     rust.register("vym.down", |state, target, key| {
-        target.move_down();
+        target.move_cursor_down();
     });
     normal.bind_action([Key::Char('j')], "vym.down");
 
     rust.register("vym.up", |state, target, key| {
-        target.move_up();
+        target.move_cursor_up();
     });
     normal.bind_action([Key::Char('k')], "vym.up");
 
