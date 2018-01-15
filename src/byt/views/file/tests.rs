@@ -51,6 +51,24 @@ fn it_moves_down() {
 }
 
 #[test]
+fn it_moves_down_to_CR() {
+    let mut file = make_file();
+    file.insert_str("foo\n");
+    file.set_cursor(3);
+    file.move_down();
+    assert_eq!(file.cursor_offset, 4);
+}
+
+#[test]
+fn it_doesnt_move_down_past_end() {
+    let mut file = make_file();
+    file.insert_str("foo\nbar");
+    file.set_cursor(4);
+    file.move_down();
+    assert_eq!(file.cursor_offset, 4);
+}
+
+#[test]
 fn it_moves_up() {
     let mut file = make_file();
     file.insert_str("foo\nbar");
@@ -67,6 +85,29 @@ fn it_moves_right() {
     file.set_cursor(0);
     file.move_right();
     assert_eq!(file.cursor_offset, 1);
+}
+
+#[test]
+fn it_gets_the_current_line() {
+    let mut file = make_file();
+    file.insert_str("this is a test line");
+    assert_eq!(file.current_line().number(), 1);
+}
+
+#[test]
+fn it_gets_the_current_line_of_many() {
+    let mut file = make_file();
+    file.insert_str("a\nb");
+    file.set_cursor(3);
+    assert_eq!(file.current_line().number(), 2);
+}
+
+#[test]
+fn it_moves_to_line_start() {
+    let mut file = make_file();
+    file.insert_str("this is a test line");
+    file.goto_line_start();
+    assert_eq!(file.cursor_offset, 0);
 }
 
 #[test]

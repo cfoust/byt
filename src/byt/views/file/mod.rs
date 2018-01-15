@@ -50,6 +50,11 @@ pub struct Line {
 }
 
 impl Line {
+    /// Check whether an offset falls within this line.
+    pub fn contains(&self, offset : usize) -> bool {
+        offset >= self.start() && offset < self.end()
+    }
+
     /// Get the offset of the end of the line.
     pub fn content_end(&self) -> usize {
         self.offset + self.content_length
@@ -206,7 +211,8 @@ impl FileView {
         let mut index = 0;
         // TODO make this binary search
         for line in self.lines.iter() {
-            if offset >= line.start() && offset < line.end() {
+            if line.contains(offset) ||
+               offset == line.content_end() {
                 return &line;
             }
 
@@ -334,18 +340,34 @@ impl FileView {
     pub fn move_lines(&mut self, delta : i64) {
         let current_start = self.current_line().start();
         // Have to subtract by one becauase line numbers are 1-indexed.
-        let number        = self.current_line().number() - 1;
+        let index         = self.current_line().number() - 1;
 
         // The distance of the cursor from the line's beginning.
         let current_column = self.cursor_offset - current_start;
         let num_lines      = (self.lines.len() as i64);
 
+        // We want to allow the user to go to one past the newline
+        // characters at the end of the final line if there are any so that
+        // they can delete or edit past the newline at the end of the file.
+        let last           = self.lines.len() - 1;
+        let last_end_chars = self.lines[last].line_ending_length;
+        let last_end       = self.lines[last].end();
+
+        if delta > 0 &&
+           index + (delta as usize) == self.lines.len() &&
+           last_end_chars > 0 {
+            self.set_cursor(last_end);
+            self.render_cursor = true;
+            return;
+        }
+
         // Calculate the bounded result of the move.
-        let dest_index  = cmp::max(0, cmp::min(num_lines - 1, (number as i64) + delta)) as usize;
+        let dest_index  = cmp::max(0, cmp::min(num_lines - 1, (index as i64) + delta)) as usize;
         let dest_column = cmp::min(self.lines[dest_index].content_length, current_column);
 
         let line_start = self.lines[dest_index].start();
         self.set_cursor(dest_column + line_start);
+
         self.render_cursor = true;
     }
 
