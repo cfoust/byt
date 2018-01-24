@@ -455,18 +455,12 @@ impl FileView {
         Ok(())
     }
 
-    /// Set the line that is the top of the viewport. Lines
-    /// are zero-indexed.
+    /// Set the line that is the top of the viewport. Lines are one-indexed
+    /// so the top of the viewport should be at least 1.
     pub fn set_viewport_top(&mut self, line : usize) -> Result<()> {
-        self.viewport_top = cmp::min(line, self.lines.len());
+        self.viewport_top = cmp::max(1, cmp::min(line, self.lines.len()));
         self.render_lines = true;
         Ok(())
-    }
-}
-
-impl KeyInput for FileView {
-    fn consume(&mut self, key : Key) -> Option<()> {
-        None
     }
 }
 
@@ -478,7 +472,7 @@ impl Actionable for FileView {
 
 impl render::Renderable for FileView {
     fn render(&mut self, renderer : &mut render::Renderer, size : (u16, u16)) -> Result<()> {
-        let (rows, cols) = size;
+        let (cols, rows) = size;
         let top          = self.viewport_top;
         let bottom       = cmp::min(top + (rows as usize) - 1, self.lines.len());
 
@@ -497,12 +491,22 @@ impl render::Renderable for FileView {
         }
 
         for line in self.lines.iter() {
+            // Don't render anything before the top of the viewport.
             if line.number < top {
                 continue;
             }
 
-            line_number = line.number() - top + 1;
+            line_number = line.number - top + 1;
 
+            // Don't render anything past the bottom edge of the viewport.
+            if line_number > (rows as usize) {
+                break;
+            }
+
+            // We need to find where the cursor is on the screen by
+            // checking for it in each line we render. The cursor is just
+            // a byte offset in the file; this means that this may fail if
+            // the cursor is in the middle of a multibyte grapheme.
             if !cursor_placed && cursor_offset >= line.start() {
                 if cursor_offset <= line.content_end() {
                     cursor_row    = line_number as u16;
@@ -524,7 +528,7 @@ impl render::Renderable for FileView {
 
         let next_line = (line_number + 1) as u16;
         if self.render_lines && next_line <= rows {
-            for line in next_line .. rows {
+            for line in next_line .. rows + 1 {
                 renderer.move_cursor(line, 1);
                 renderer.write("~");
             }
