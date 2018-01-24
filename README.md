@@ -1,4 +1,8 @@
-# ⒷⓎⓉ a.k.a Ⓑretty Ⓨouseful Ⓣhing
+# Ⓑretty Ⓨouseful Ⓣhing
+
+> a command line editor to make text editing fun again
+
+> jk it kinda never was but hey it should be
 
 [![Build
 Status](https://travis-ci.org/cfoust/byt.svg?branch=master)](https://travis-ci.org/cfoust/byt)
@@ -32,4 +36,5 @@ make interfaces.
 
 The editor is very much a work in progress and currently is not even close to
 being functional. See ROADMAP.md for a deeper understanding of where things are
-and when, if at all, byt will be usable for general text editing.
+and when, if at all, byt will be usable for general text editing. You probably
+won't see it at your average coffee shop for a number of years.
