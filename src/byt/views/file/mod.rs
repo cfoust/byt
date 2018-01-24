@@ -470,6 +470,12 @@ impl Actionable for FileView {
     }
 }
 
+impl KeyInput for FileView {
+    fn consume(&mut self, key : Key) -> Option<()> {
+        None
+    }
+}
+
 impl render::Renderable for FileView {
     fn render(&mut self, renderer : &mut render::Renderer, size : (u16, u16)) -> Result<()> {
         let (cols, rows) = size;
