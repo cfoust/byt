@@ -1,9 +1,21 @@
-# byt
+# ⒷⓎⓉ a.k.a Ⓑretty Ⓨouseful Ⓣhing
 
 [![Build
 Status](https://travis-ci.org/cfoust/byt.svg?branch=master)](https://travis-ci.org/cfoust/byt)
 [![License:
 MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
+
+## features
+
+* **hella good plugin system**: the only required plugin is the plugin manager.
+  You can disable everything else and the editor won't be able to do anything.
+  That would be stupid.
+* **extensible with [gluon](https://github.com/gluon-lang/gluon)**: Configuration is code.
+* **killer color schemes**: They adjust as you type. Jam out.
+* **kickass bindings**: Break out of your shell. Bindings can be arbitrary
+  state machines.
+
+## y tho
 
 byt is a flexibly ergonomic text editor for the terminal. Its primary goals are
 efficiency and extensibility. It renders in full true color on supported
@@ -16,18 +28,7 @@ You cannot replace them. The basic movement keys cannot be changed or moved to
 other keys. In addition, plugins have to do hacky work with text buffers to
 make interfaces.
 
-byt solves this problem by making plugins a first class citizen. They can have
-arbitrary state machines for key bindings, receive hooks from the editor, and
-render whatever they so desire when given certain events. With byt, the
-configuration of your text editor is only limited by your imagination.
-
-Most text editors set you up with a set of keybindings, maybe give you a live
-editing context right off the bat, and let you go at it. Without its base
-plugins, byt does not do that. All of the editor's basic functionality is
-really comprised of a set of mutators. For now, that's just `vym`, byt's vim
-emulation mode. byt aims for complete customizability of the development
-experience when it comes to text by allowing you to replace everything if you
-so choose.
+## install it
 
 The editor is very much a work in progress and currently is not even close to
 being functional. See ROADMAP.md for a deeper understanding of where things are

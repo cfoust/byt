@@ -24,8 +24,13 @@ For now this is more of a to-do list but it generally defines the direction the 
 - [X] Set up a system of mutations, which optionally attach to the pane or the
   global editing context and provide a combination of binding tables and
   functions.
-- [ ] Revisit the FileView's buffer operations and make them airtight. This
+- [X] Revisit the FileView's buffer operations and make them airtight. This
   might involve rewriting some portion of view-specific rendering code.
+- [ ] Refine mutation system to be a bit more logical and easier to understand.
+  Mutators should be able to affect the flow of any part of the editor.
+- [ ] Include gluon for editor extensibility. `gluon` plugins should be able to
+  do anything a Rust-defined plugin can. Also, gluon's functions should have
+    access to all of the editor state that Rust-defined functions would.
 - [ ] Implement `vym`, byt's vim emulation mode. The goal isn't to be exactly
   like vim, just to make keybindings that are familiar to vim users.
   - [ ] All common movement keys.
@@ -35,11 +40,6 @@ For now this is more of a to-do list but it generally defines the direction the 
     subset of vim's operations like saving and opening files.
   - [ ] Registers for copying and pasting.
   - [ ] Visual mode.
-- [ ] Refine mutation system to be a bit more logical and easier to understand.
-  Mutators should be able to affect the flow of any part of the editor.
-- [ ] Include gluon for editor extensibility. `gluon` plugins should be able to
-  do anything a Rust-defined plugin can. Also, gluon's functions should have
-    access to all of the editor state that Rust-defined functions would.
 - [ ] Rewrite rendering logic to avoid flickering. This involves storing a
   logical representation of the characters currently on the screen and only
   updating those that have changed.
