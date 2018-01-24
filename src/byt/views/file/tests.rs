@@ -202,6 +202,7 @@ fn it_doesnt_fail_to_move_with_invalid_delta() {
     let mut file = make_file();
     file.insert_str("foo\nbar");
     file.set_viewport_top(2);
+    assert_eq!(file.viewport_top, 2);
     file.move_viewport(-3);
     assert_eq!(file.viewport_top, 1);
 }
@@ -238,3 +239,18 @@ fn it_goes_to_the_start_of_the_file() {
     file.move_cursor_to_start();
     assert_eq!(file.cursor_offset, 0);
 }
+
+//#[test]
+//fn it_clamps_the_cursor_to_the_viewport_above() {
+    //let mut file = make_file();
+
+    //for line in 0 .. 10 {
+        //file.insert_str("f\n");
+    //}
+
+    //file.viewport_rows = 5;
+    //file.viewport_top  = 1;
+    //file.set_cursor(0);
+    //file.set_viewport_top(5);
+    //assert_eq!(file.cursor_offset, 8);
+//}

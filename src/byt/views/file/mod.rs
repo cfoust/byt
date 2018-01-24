@@ -253,7 +253,7 @@ impl FileView {
             file : PieceFile::empty().unwrap(),
             cursor_offset : 0,
             viewport_top : 1,
-            viewport_rows : 0,
+            viewport_rows : 26,
             lines : Vec::new(),
             render_lines : true,
             render_cursor : true,
@@ -350,8 +350,6 @@ impl FileView {
 
         let line_start = self.lines[dest_index].start();
         self.set_cursor(dest_column + line_start);
-
-        self.render_cursor = true;
     }
 
     /// Move the cursor down one.
@@ -403,16 +401,9 @@ impl FileView {
     /// Move the viewport up and down in the file.
     pub fn move_viewport(&mut self, delta : i64) {
         let index      = self.viewport_top as i64;
-        let num_lines  = self.lines.len() as i64;
-        let dest_index = cmp::max(1, cmp::min(num_lines, index + delta)) as usize;
+        let num_lines  = self.lines.len();
+        let dest_index = cmp::min(cmp::max(1, index + delta) as usize, num_lines);
         self.set_viewport_top(dest_index);
-
-        // If we scroll past where the cursor is we want to move it, too.
-        let current_line = self.current_line().number();
-        if dest_index > current_line {
-            let target = (dest_index as i64) - (current_line as i64);
-            self.move_cursor_vertically(target);
-        }
     }
 
     /// Make a new FileView with a predefined path. Does not attempt to open the file
@@ -423,7 +414,7 @@ impl FileView {
             file : PieceFile::open(path).unwrap(),
             cursor_offset : 0,
             viewport_top : 1,
-            viewport_rows : 0,
+            viewport_rows : 26,
             lines : Vec::new(),
             render_lines : true,
             render_cursor : true,
@@ -456,9 +447,22 @@ impl FileView {
     }
 
     /// Set the line that is the top of the viewport. Lines are one-indexed
-    /// so the top of the viewport should be at least 1.
+    /// so the top of the viewport should be at least 1. The cursor offset
+    /// is clamped to the inside of the viewport.
     pub fn set_viewport_top(&mut self, line : usize) -> Result<()> {
         self.viewport_top = cmp::max(1, cmp::min(line, self.lines.len()));
+
+        let rows    = self.viewport_rows;
+        let top     = self.viewport_top;
+        let bottom  = cmp::min(top + (rows as usize) - 1, self.lines.len());
+        let current = self.current_line().number;
+
+        if current < top {
+            self.move_cursor_vertically((top - current) as i64);
+        } else if current > bottom {
+            self.move_cursor_vertically((bottom as i64) - (current as i64));
+        }
+
         self.render_lines = true;
         Ok(())
     }
