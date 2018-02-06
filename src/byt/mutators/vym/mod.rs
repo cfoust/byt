@@ -17,7 +17,7 @@ use std::io;
 mod tests;
 
 // LOCAL INCLUDES
-use byt::editor::mutator::*;
+use super::*;
 use byt::editor::*;
 use byt::render;
 use byt::render::Renderable;

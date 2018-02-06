@@ -13,14 +13,13 @@ use std::io::{
 use std::vec::Drain;
 
 // SUBMODULES
-pub mod mutator;
 mod tests;
 
 // LOCAL INCLUDES
 use byt::views::file::FileView;
 use byt::io::binds::{Keymaster, KeyInput};
 use byt::render;
-use byt::editor::mutator::MutatePair;
+use byt::mutators::{MutatePair, Mutator};
 
 #[derive(Clone, PartialEq, Debug)]
 /// An action will try to run the function in the scope specified.
@@ -53,7 +52,7 @@ pub struct Editor {
     actions : Vec<Action>,
 
     /// All of the global mutators for the editor.
-    mutators : Vec<Box<mutator::Mutator<Editor>>>,
+    mutators : Vec<Box<Mutator<Editor>>>,
 
     /// Whether or not we should render at the next opportunity.
     should_render : bool,

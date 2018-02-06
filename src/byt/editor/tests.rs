@@ -3,12 +3,12 @@
 
 use termion::event::Key;
 use super::*;
-use super::mutator::Scope;
+use byt::mutators::*;
 
 #[test]
 fn it_uses_a_rust_closure() {
     let mut bar = 0;
-    let mut rust = mutator::RustScope::new(0);
+    let mut rust = RustScope::new(0);
 
     rust.register("foo", |state, target, c| {
         *target = 2;
@@ -21,7 +21,7 @@ fn it_uses_a_rust_closure() {
 #[test]
 fn it_uses_a_rust_closure_with_state() {
     let mut bar = 0;
-    let mut rust = mutator::RustScope::new(false);
+    let mut rust = RustScope::new(false);
 
     rust.register("foo", |state, target, c| {
         *state = true;

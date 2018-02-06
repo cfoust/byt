@@ -4,6 +4,7 @@ version = "0.1.0"
 authors = ["Caleb Foust <cfoust@sqweebloid.com>"]
 
 [dependencies]
+gluon = "0.7.0"
 libc = "0.2.0"
 regex = "0.2"
 termion = "*"

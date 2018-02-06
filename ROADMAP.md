@@ -20,7 +20,7 @@ project is heading in terms of features. Bugs exist outside of this timeline.
   - [x] reading
   - [x] rendering
   - [ ] writing
-  - [ ] creating files.
+  - [ ] creating files
 - [x] All keybindings that correspond to an action really are calling a
   closure by name. Come up with the system of scoping (i.e pane specific,
   global, etc) and passing mutable editor state into the functions.
@@ -31,12 +31,16 @@ project is heading in terms of features. Bugs exist outside of this timeline.
   functions.
 - [x] Revisit the FileView's buffer operations and make them airtight. This
   might involve rewriting some portion of view-specific rendering code.
-- [ ] Refine mutation system to be a bit more logical and easier to understand.
-  Mutators should be able to affect the flow of any part of the editor.
-  - [ ] All plugins can define both editor-level and view-level actions.
-- [ ] Include gluon for editor extensibility. `gluon` plugins should be able to
-  do anything a Rust-defined plugin can. Also, gluon's functions should have
-    access to all of the editor state that Rust-defined functions would.
+- [ ] Create a system of plugins, called mutators, which are defined in gluon.
+  These mutators can do the following:
+  - [ ] Define sets of string-identified actions that mutate both mutator state
+    and some aspect of editor state. At their most basic level, actions are
+    just functions in gluon.
+  - [ ] Define arbitrary keybindings as state machines. Mutators can receive
+    input and respond to it, but can optionally decide to swallow the key
+    event.
+  - [ ] Asynchronous operations, like executing shell commands and sending
+    requests on the network.
 - [ ] Implement `vym`, byt's vim emulation mode. The goal isn't to be exactly
   like vim, just to make keybindings that are familiar to vim users. Most of
   this stuff relies upon changes to the FileView so that vym can actually
@@ -67,4 +71,3 @@ project is heading in terms of features. Bugs exist outside of this timeline.
   scratch.
 - [ ] As the user works with byt, optionally collect usage information that can
   suggest more efficient keybindings.
-

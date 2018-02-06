@@ -4,7 +4,7 @@
 //! care about.
 #[cfg(test)]
 
-use byt::editor::mutator::*;
+use byt::mutators::*;
 use byt::views::file::FileView;
 
 use super::*;

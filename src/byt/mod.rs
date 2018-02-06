@@ -30,7 +30,7 @@ mod views;
 
 // LOCAL INCLUDES
 use byt::editor::{Action, Actionable, Editor};
-use byt::editor::mutator::*;
+use byt::mutators::*;
 use byt::io::binds::KeyInput;
 use byt::io::file;
 use byt::render::Renderable;

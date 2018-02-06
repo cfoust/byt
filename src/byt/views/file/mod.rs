@@ -30,8 +30,7 @@ use byt::io::file::PieceFile;
 use byt::render;
 use byt::editor::{
     Action,
-    Actionable,
-    mutator
+    Actionable
 };
 use byt::io::binds::KeyInput;
 
