@@ -13,6 +13,7 @@ use std::env;
 use std::io::{Write, stdout, stdin};
 use std::sync::mpsc::channel;
 use std::thread;
+use hlua;
 use termion::cursor::Goto;
 use termion::event::Key;
 use termion::input::TermRead;
@@ -52,10 +53,9 @@ pub fn render(mut screen : &mut Write, editor : &mut MutatePair<Editor>) {
 /// Initialize and start byt.
 pub fn init() {
     let mut editor = MutatePair::new(editor::Editor::new());
+    let mut lua    = hlua::Lua::new();
 
-    {
-        lua::init_lua(editor.target_mut());
-    }
+    lua::init_lua(&mut lua);
 
     let mut stdout = stdout().into_raw_mode().unwrap();
     let mut screen = AlternateScreen::from(stdout);
@@ -75,7 +75,6 @@ pub fn init() {
         .current_file()
         .unwrap()
         .register_mutator(Box::new(Vym::new()));
-
 
     render(&mut screen, &mut editor);
 
