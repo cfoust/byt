@@ -38,7 +38,7 @@ pub trait Actionable {
 /// renders appropriately.
 pub struct Editor {
     /// Akin to vim's buffers. All of the open files in the editor.
-    files : Vec<MutatePair<FileView>>,
+    pub files : Vec<MutatePair<FileView>>,
 
     /// Stores all of the global keybindings.
     keys : Keymaster,
