@@ -58,6 +58,7 @@ pub struct Editor {
     should_render : bool,
 }
 
+
 impl Editor {
     pub fn new() -> Editor {
         Editor {

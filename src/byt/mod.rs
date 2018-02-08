@@ -24,6 +24,7 @@ use termion;
 mod editor;
 mod events;
 mod io;
+mod lua;
 mod mutators;
 mod render;
 mod views;
@@ -50,13 +51,18 @@ pub fn render(mut screen : &mut Write, editor : &mut MutatePair<Editor>) {
 
 /// Initialize and start byt.
 pub fn init() {
+    let mut editor = MutatePair::new(editor::Editor::new());
+
+    {
+        lua::init_lua(editor.target_mut());
+    }
+
     let mut stdout = stdout().into_raw_mode().unwrap();
     let mut screen = AlternateScreen::from(stdout);
     let mut arguments = env::args();
 
     let (sender, receiver) = channel::<Event>();
 
-    let mut editor = MutatePair::new(editor::Editor::new());
 
     if arguments.len() > 1 {
         editor.target_mut().open(arguments.nth(1).unwrap().as_str());
@@ -69,6 +75,7 @@ pub fn init() {
         .current_file()
         .unwrap()
         .register_mutator(Box::new(Vym::new()));
+
 
     render(&mut screen, &mut editor);
 

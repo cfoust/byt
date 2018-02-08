@@ -1,4 +1,6 @@
 // EXTERNS
+#[macro_use]
+extern crate hlua;
 extern crate libc;
 extern crate termion;
 
