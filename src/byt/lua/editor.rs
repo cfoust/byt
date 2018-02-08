@@ -2,7 +2,10 @@
 
 // LIBRARY INCLUDES
 use hlua;
-use hlua::{Lua, LuaTable};
+use hlua::{
+    Lua,
+    LuaError
+};
 
 // SUBMODULES
 
@@ -10,7 +13,7 @@ use hlua::{Lua, LuaTable};
 use super::HackyPtr;
 use byt::editor::Editor;
 
-pub fn init_lua_editor(mut lua : &mut Lua) {
+pub fn init_lua_editor(mut lua : &mut Lua) -> Result<(), LuaError> {
     lua.set("__editor_open", hlua::function2(|ptr : &HackyPtr, path : hlua::AnyLuaValue| {
         unsafe {
             let mut editor = &mut *ptr.demarshall::<Editor>();
@@ -21,5 +24,7 @@ pub fn init_lua_editor(mut lua : &mut Lua) {
         }
     }));
 
-    lua.execute::<()>(include_str!("editor.lua")).unwrap();
+    lua.execute::<()>(include_str!("editor.lua"))?;
+
+    Ok(())
 }

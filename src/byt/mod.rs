@@ -52,10 +52,13 @@ pub fn render(mut screen : &mut Write, editor : &mut MutatePair<Editor>) {
 
 /// Initialize and start byt.
 pub fn init() {
-    let mut editor = MutatePair::new(editor::Editor::new());
     let mut lua    = hlua::Lua::new();
 
-    lua::init_lua(&mut lua);
+    lua::init_lua(&mut lua).unwrap_or_else(|err| {
+        println!("There was an error initializing Lua.");
+        println!("{:?}", err);
+    });
+    ::std::process::exit(0);
 
     let mut stdout = stdout().into_raw_mode().unwrap();
     let mut screen = AlternateScreen::from(stdout);
@@ -63,6 +66,7 @@ pub fn init() {
 
     let (sender, receiver) = channel::<Event>();
 
+    let mut editor = MutatePair::new(editor::Editor::new());
 
     if arguments.len() > 1 {
         editor.target_mut().open(arguments.nth(1).unwrap().as_str());

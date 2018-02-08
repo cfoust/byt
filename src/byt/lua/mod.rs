@@ -2,7 +2,10 @@
 
 // LIBRARY INCLUDES
 use hlua;
-use hlua::Lua;
+use hlua::{
+    Lua,
+    LuaError
+};
 
 // SUBMODULES
 mod editor;
@@ -56,10 +59,10 @@ fn marshall<T>(lua : &mut Lua, name : &str, target : &T) {
 }
 
 /// Initialize a Lua VM with everything necessary to interoperate with byt.
-pub fn init_lua(mut lua : &mut Lua) {
+pub fn init_lua(mut lua : &mut Lua) -> Result<(), LuaError> {
     lua.openlibs();
 
-    editor::init_lua_editor(lua);
+    editor::init_lua_editor(lua)?;
 
     // ENTER marshall(&mut lua, "__editor", editor);
 
@@ -68,5 +71,5 @@ pub fn init_lua(mut lua : &mut Lua) {
     //"#)
         //.unwrap();
 
-    ::std::process::exit(0);
+    Ok(())
 }
