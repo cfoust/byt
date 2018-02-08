@@ -64,12 +64,11 @@ pub fn init_lua(mut lua : &mut Lua) -> Result<(), LuaError> {
 
     editor::init_lua_editor(lua)?;
 
-    // ENTER marshall(&mut lua, "__editor", editor);
-
-    //lua.execute::<()>(r#"
-    //Editor:open('testfiles/no_line_ending.txt')
-    //"#)
-        //.unwrap();
-
     Ok(())
+}
+
+/// Inject a pointer to the editor into the Lua VM. Do this before running any
+/// mutator actions.
+pub fn inject_editor(mut lua : &mut Lua, editor : &Editor) {
+    marshall(&mut lua, "__editor", editor);
 }

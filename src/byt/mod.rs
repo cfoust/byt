@@ -58,7 +58,6 @@ pub fn init() {
         println!("There was an error initializing Lua.");
         println!("{:?}", err);
     });
-    ::std::process::exit(0);
 
     let mut stdout = stdout().into_raw_mode().unwrap();
     let mut screen = AlternateScreen::from(stdout);
