@@ -61,6 +61,7 @@ impl Binding {
 
 /// A table of bindings.
 pub struct BindingTable {
+    // TODO Why the heck isn't this a HashMap??
     bindings : Vec<Binding>,
     /// Describes what happens when a key matches nothing in the list
     /// of bindings. If `wildcard` is an Arrow, it is invoked with

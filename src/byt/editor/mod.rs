@@ -38,10 +38,7 @@ pub trait Actionable {
 /// renders appropriately.
 pub struct Editor {
     /// Akin to vim's buffers. All of the open files in the editor.
-    pub files : Vec<MutatePair<FileView>>,
-
-    /// Stores all of the global keybindings.
-    keys : Keymaster,
+    files : Vec<MutatePair<FileView>>,
 
     /// The index of the current file inside self.files. In the future
     /// this will be a bit more elegant, but it's fine for the time being.
@@ -53,11 +50,7 @@ pub struct Editor {
 
     /// All of the global mutators for the editor.
     mutators : Vec<Box<Mutator<Editor>>>,
-
-    /// Whether or not we should render at the next opportunity.
-    should_render : bool,
 }
-
 
 impl Editor {
     pub fn new() -> Editor {
@@ -118,7 +111,7 @@ impl render::Renderable for Editor {
     }
 
     fn should_render(&self) -> bool {
-        // TODO This is dangerous. Fix this.
+        // TODO This can lead to panics if there are no files. Fix this.
         self.files[self.current_file].should_render()
     }
 }
